@@ -418,6 +418,9 @@ body {
   gap: 12px;
   margin-bottom: 16px;
 }
+.dash-charts.three-col {
+  grid-template-columns: 1fr 1fr 1fr;
+}
 .dash-chart-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -2150,7 +2153,7 @@ function sendOpEmail() {
 // ============================================================
 function renderFacturacion() {
   var html = "<div class=\"dash-kpi-strip\" id=\"fact-kpis\"></div>";
-  html += "<div class=\"dash-charts\">";
+  html += "<div class=\"dash-charts three-col\">";
   html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Por l\u00ednea de negocio</div><canvas id=\"chart-fact-linea\" height=\"110\"></canvas></div>";
   html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Acumulado facturado</div><canvas id=\"chart-fact-acum\" height=\"110\"></canvas></div>";
   var _y = new Date().getFullYear();
@@ -2167,12 +2170,14 @@ function renderFacturacion() {
 
   html += "<div class=\"action-row\" style=\"margin-bottom:16px\">";
   html += "<button class=\"btn btn-ghost\" onclick=\"exportFacturacionExcel()\">\u2191 Exportar Excel</button>";
+  html += "<button class=\"btn btn-ghost\" onclick=\"document.getElementById('import-fact-input').click()\">\u2193 Importar Excel</button>";
+  html += "<input type=\"file\" id=\"import-fact-input\" accept=\".xlsx,.xls\" style=\"display:none\" onchange=\"importFacturacionExcel(this)\">";
   html += "<input type=\"text\" class=\"table-search\" id=\"search-fact\" placeholder=\"Buscar...\" oninput=\"filterFacturacion()\" style=\"margin-left:auto\">";
   html += "</div>";
 
   html += "<div class=\"table-card\">";
   html += "<div class=\"table-header\"><span class=\"table-title\">Control de Facturaci\u00f3n</span><span class=\"table-count\" id=\"fact-count\">"+ cacheOPs.length+"</span></div>";
-  html += "<div class=\"tbl-wrap\"><table><thead><tr><th>OP #</th><th>Cliente</th><th>Proyecto</th><th>L\u00ednea</th><th>Valor total</th><th>Fecha OP</th><th>Facturado</th><th>C\u00f3digo factura</th><th>Fecha factura</th></tr></thead><tbody id=\"fact-tbody\"></tbody></table></div></div>";
+  html += "<div class=\"tbl-wrap\"><table><thead><tr><th>OP #</th><th>Cliente</th><th>Proyecto</th><th>L\u00ednea</th><th>Valor total</th><th>Fecha OP</th><th>Facturado</th><th>C\u00f3digo factura</th><th>Fecha factura</th><th>Observaciones</th></tr></thead><tbody id=\"fact-tbody\"></tbody></table></div></div>";
 
   document.getElementById("page-body").innerHTML = html;
   document.getElementById("topbar-badge").textContent = "Facturaci\u00f3n";
@@ -2266,6 +2271,7 @@ function renderFactRows(data) {
       "<td style=\"text-align:center\"><input type=\"checkbox\" class=\"fact-check\" "+(d.facturado?"checked":"")+" onchange=\"toggleFacturado('"+d.id+"',this)\"></td>" +
       "<td><input type=\"text\" value=\""+(d.codigoFactura||"")+"\" style=\"background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--text-primary);font-family:var(--font-mono);font-size:12px;outline:none;width:120px\" onblur=\"updateFacturaCodigo('"+d.id+"',this.value)\"></td>" +
       "<td><input type=\"date\" value=\""+(d.fechaFactura||"")+"\" style=\"background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--text-primary);font-family:var(--font-ui);font-size:12px;outline:none\" onchange=\"updateFacturaFecha('"+d.id+"',this.value)\"></td>" +
+      "<td><input type=\"text\" value=\""+(d.observaciones||"")+"\" placeholder=\"Observaciones...\" style=\"background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--text-primary);font-family:var(--font-ui);font-size:12px;outline:none;min-width:160px\" onblur=\"updateFactObs('"+d.id+"',this.value)\"></td>" +
     "</tr>";
   }).join("");
 }
@@ -2298,6 +2304,13 @@ function updateFacturaFecha(opId, val) {
     var data = getFactFilteredData();
     updateFactKPIs(data);
     setTimeout(function(){ initFactCharts(data); }, 80);
+  });
+}
+
+function updateFactObs(opId, val) {
+  db.collection("ops").doc(opId).update({ observaciones: val }).then(function() {
+    var op = cacheOPs.find(function(o){ return o.id===opId; });
+    if (op) op.observaciones = val;
   });
 }
 
@@ -2687,9 +2700,112 @@ function exportOPsExcel() {
   exportToExcel(data, "OPs_JossiLab");
 }
 
+
+function importFacturacionExcel(input) {
+  var file = input.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var wb = XLSX.read(e.target.result, { type: "binary", cellDates: true });
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
+      if (!rows.length) { showToast("El archivo está vacío", "error"); return; }
+
+      // Column mapping — flexible, case-insensitive
+      function getVal(row, keys) {
+        for (var i = 0; i < keys.length; i++) {
+          for (var k in row) {
+            if (k.toLowerCase().trim() === keys[i].toLowerCase()) return row[k];
+          }
+        }
+        return "";
+      }
+
+      function parseDate(val) {
+        if (!val) return "";
+        if (val instanceof Date) return val.toISOString().split("T")[0];
+        var s = String(val).trim();
+        // DD/MM/YYYY
+        var m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+        if (m) return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
+        // YYYY-MM-DD
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
+        return s;
+      }
+
+      function parseMoney(val) {
+        if (typeof val === "number") return val;
+        return parseFloat(String(val).replace(/[^0-9.,-]/g,"").replace(",",".")) || 0;
+      }
+
+      // Get next consecutive number
+      var maxConsec = cacheOPs.reduce(function(m,o){ return Math.max(m, o.consecutivo||0); }, 0);
+
+      var batch = [];
+      rows.forEach(function(row) {
+        var cliente   = String(getVal(row, ["cliente","client"])||"").trim();
+        var proyecto  = String(getVal(row, ["proyecto","project","nombre","nombre proyecto"])||"").trim();
+        if (!cliente && !proyecto) return; // skip empty rows
+
+        var consecutivoRaw = getVal(row, ["op #","op#","op","consecutivo","numero","número"]);
+        var consecutivo = parseInt(String(consecutivoRaw).replace(/[^0-9]/g,"")) || (++maxConsec);
+
+        var facturadoRaw = String(getVal(row, ["facturado","factura","paid"])||"").toLowerCase().trim();
+        var facturado = facturadoRaw === "sí" || facturadoRaw === "si" || facturadoRaw === "true" || facturadoRaw === "1" || facturadoRaw === "yes";
+
+        batch.push({
+          consecutivo:  consecutivo,
+          cliente:      cliente,
+          proyecto:     proyecto,
+          linea:        String(getVal(row, ["línea","linea","line","línea de negocio"])||"").trim(),
+          valorTotal:   parseMoney(getVal(row, ["valor total","valor","total","monto","amount"])),
+          fecha:        parseDate(getVal(row, ["fecha op","fecha","date","fecha orden"])),
+          ft:           String(getVal(row, ["ft"])||"").trim(),
+          facturado:    facturado,
+          codigoFactura:String(getVal(row, ["código factura","codigo factura","factura","invoice","código"])||"").trim(),
+          fechaFactura: parseDate(getVal(row, ["fecha factura","fecha de factura","invoice date"])),
+          observaciones:String(getVal(row, ["observaciones","observación","observacion","notas","notes"])||"").trim(),
+          items:        [],
+          importado:    true,
+          creadoEn:     new Date().toISOString()
+        });
+      });
+
+      if (!batch.length) { showToast("No se encontraron registros válidos", "error"); return; }
+
+      showToast("Importando "+batch.length+" registros...", "info");
+
+      // Write in chunks of 20
+      var idx = 0;
+      function writeChunk() {
+        if (idx >= batch.length) {
+          showToast("Importación completada: "+batch.length+" registros", "success");
+          input.value = "";
+          reloadCache("ops").then(function(){ renderFacturacion(); });
+          return;
+        }
+        var chunk = batch.slice(idx, idx+20);
+        idx += 20;
+        var promises = chunk.map(function(rec) {
+          return db.collection("ops").add(rec);
+        });
+        Promise.all(promises).then(writeChunk).catch(function(err) {
+          showToast("Error: "+err.message, "error");
+        });
+      }
+      writeChunk();
+
+    } catch(err) {
+      showToast("Error leyendo Excel: "+err.message, "error");
+      console.error(err);
+    }
+  };
+  reader.readAsBinaryString(file);
+}
 function exportFacturacionExcel() {
   var data = getFactFilteredData().map(function(d) {
-    return { "OP #":"OP-"+(d.consecutivo||""), "Cliente":d.cliente||"", "Proyecto":d.proyecto||"", "Línea":d.linea||"", "Valor total":d.valorTotal||0, "Fecha OP":d.fecha||"", "Facturado":d.facturado?"Sí":"No", "Código factura":d.codigoFactura||"", "Fecha factura":d.fechaFactura||"" };
+    return { "OP #":"OP-"+(d.consecutivo||""), "Cliente":d.cliente||"", "Proyecto":d.proyecto||"", "Línea":d.linea||"", "Valor total":d.valorTotal||0, "Fecha OP":d.fecha||"", "Facturado":d.facturado?"Sí":"No", "Código factura":d.codigoFactura||"", "Fecha factura":d.fechaFactura||"", "Observaciones":d.observaciones||"" };
   });
   exportToExcel(data, "Facturacion_JossiLab");
 }
@@ -3167,6 +3283,9 @@ body {
   gap: 12px;
   margin-bottom: 16px;
 }
+.dash-charts.three-col {
+  grid-template-columns: 1fr 1fr 1fr;
+}
 .dash-chart-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -4899,7 +5018,7 @@ function sendOpEmail() {
 // ============================================================
 function renderFacturacion() {
   var html = "<div class=\"dash-kpi-strip\" id=\"fact-kpis\"></div>";
-  html += "<div class=\"dash-charts\">";
+  html += "<div class=\"dash-charts three-col\">";
   html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Por l\u00ednea de negocio</div><canvas id=\"chart-fact-linea\" height=\"110\"></canvas></div>";
   html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Acumulado facturado</div><canvas id=\"chart-fact-acum\" height=\"110\"></canvas></div>";
   var _y = new Date().getFullYear();
@@ -4916,12 +5035,14 @@ function renderFacturacion() {
 
   html += "<div class=\"action-row\" style=\"margin-bottom:16px\">";
   html += "<button class=\"btn btn-ghost\" onclick=\"exportFacturacionExcel()\">\u2191 Exportar Excel</button>";
+  html += "<button class=\"btn btn-ghost\" onclick=\"document.getElementById('import-fact-input').click()\">\u2193 Importar Excel</button>";
+  html += "<input type=\"file\" id=\"import-fact-input\" accept=\".xlsx,.xls\" style=\"display:none\" onchange=\"importFacturacionExcel(this)\">";
   html += "<input type=\"text\" class=\"table-search\" id=\"search-fact\" placeholder=\"Buscar...\" oninput=\"filterFacturacion()\" style=\"margin-left:auto\">";
   html += "</div>";
 
   html += "<div class=\"table-card\">";
   html += "<div class=\"table-header\"><span class=\"table-title\">Control de Facturaci\u00f3n</span><span class=\"table-count\" id=\"fact-count\">"+ cacheOPs.length+"</span></div>";
-  html += "<div class=\"tbl-wrap\"><table><thead><tr><th>OP #</th><th>Cliente</th><th>Proyecto</th><th>L\u00ednea</th><th>Valor total</th><th>Fecha OP</th><th>Facturado</th><th>C\u00f3digo factura</th><th>Fecha factura</th></tr></thead><tbody id=\"fact-tbody\"></tbody></table></div></div>";
+  html += "<div class=\"tbl-wrap\"><table><thead><tr><th>OP #</th><th>Cliente</th><th>Proyecto</th><th>L\u00ednea</th><th>Valor total</th><th>Fecha OP</th><th>Facturado</th><th>C\u00f3digo factura</th><th>Fecha factura</th><th>Observaciones</th></tr></thead><tbody id=\"fact-tbody\"></tbody></table></div></div>";
 
   document.getElementById("page-body").innerHTML = html;
   document.getElementById("topbar-badge").textContent = "Facturaci\u00f3n";
@@ -5015,6 +5136,7 @@ function renderFactRows(data) {
       "<td style=\"text-align:center\"><input type=\"checkbox\" class=\"fact-check\" "+(d.facturado?"checked":"")+" onchange=\"toggleFacturado('"+d.id+"',this)\"></td>" +
       "<td><input type=\"text\" value=\""+(d.codigoFactura||"")+"\" style=\"background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--text-primary);font-family:var(--font-mono);font-size:12px;outline:none;width:120px\" onblur=\"updateFacturaCodigo('"+d.id+"',this.value)\"></td>" +
       "<td><input type=\"date\" value=\""+(d.fechaFactura||"")+"\" style=\"background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--text-primary);font-family:var(--font-ui);font-size:12px;outline:none\" onchange=\"updateFacturaFecha('"+d.id+"',this.value)\"></td>" +
+      "<td><input type=\"text\" value=\""+(d.observaciones||"")+"\" placeholder=\"Observaciones...\" style=\"background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:6px 10px;color:var(--text-primary);font-family:var(--font-ui);font-size:12px;outline:none;min-width:160px\" onblur=\"updateFactObs('"+d.id+"',this.value)\"></td>" +
     "</tr>";
   }).join("");
 }
@@ -5047,6 +5169,13 @@ function updateFacturaFecha(opId, val) {
     var data = getFactFilteredData();
     updateFactKPIs(data);
     setTimeout(function(){ initFactCharts(data); }, 80);
+  });
+}
+
+function updateFactObs(opId, val) {
+  db.collection("ops").doc(opId).update({ observaciones: val }).then(function() {
+    var op = cacheOPs.find(function(o){ return o.id===opId; });
+    if (op) op.observaciones = val;
   });
 }
 
@@ -5438,7 +5567,7 @@ function exportOPsExcel() {
 
 function exportFacturacionExcel() {
   var data = getFactFilteredData().map(function(d) {
-    return { "OP #":"OP-"+(d.consecutivo||""), "Cliente":d.cliente||"", "Proyecto":d.proyecto||"", "Línea":d.linea||"", "Valor total":d.valorTotal||0, "Fecha OP":d.fecha||"", "Facturado":d.facturado?"Sí":"No", "Código factura":d.codigoFactura||"", "Fecha factura":d.fechaFactura||"" };
+    return { "OP #":"OP-"+(d.consecutivo||""), "Cliente":d.cliente||"", "Proyecto":d.proyecto||"", "Línea":d.linea||"", "Valor total":d.valorTotal||0, "Fecha OP":d.fecha||"", "Facturado":d.facturado?"Sí":"No", "Código factura":d.codigoFactura||"", "Fecha factura":d.fechaFactura||"", "Observaciones":d.observaciones||"" };
   });
   exportToExcel(data, "Facturacion_JossiLab");
 }
