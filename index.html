@@ -631,7 +631,7 @@ tbody td {
 /* Colaboradores dinámicos */
 .colaborador-row {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   margin-bottom: 8px;
 }
@@ -646,8 +646,9 @@ tbody td {
   font-size: 13px;
   outline: none;
 }
-.colaborador-row select { flex: 2; }
-.colaborador-row input { flex: 1; }
+.colaborador-row select { flex: 2; min-width: 0; }
+.colaborador-row input:nth-of-type(1) { flex: 1; min-width: 70px; }
+.colaborador-row input:nth-of-type(2) { flex: 3; min-width: 0; }
 
 /* Seccion titulo dentro modal */
 .section-sep {
@@ -1191,6 +1192,7 @@ var chartProdLinea   = null;
 var chartProdEstado  = null;
 var chartFactLinea   = null;
 var chartFactAcum    = null;
+var chartProdColabs  = null;
 
 // ============================================================
 // AUTH
@@ -1379,9 +1381,10 @@ function renderProduccion() {
   html += compactKpi("Unidades", totalUnid, "en producción");
   html += "</div>";
   // Charts row below
-  html += "<div class=\"dash-charts\">";
+  html += "<div class=\"dash-charts\" style=\"grid-template-columns:1fr 1fr 1.4fr\">";
   html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Por línea de negocio</div><canvas id=\"chart-prod-linea\" height=\"110\"></canvas></div>";
   html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Por estado</div><canvas id=\"chart-prod-estado\" height=\"110\"></canvas></div>";
+  html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Unidades por colaborador (mes actual)</div><canvas id=\"chart-prod-colabs\" height=\"110\"></canvas></div>";
   html += "</div>";
 
   // Action row
@@ -1416,7 +1419,7 @@ function renderProdRows(data) {
   }
   var isAdmin = currentUserData.rol === "Administrador";
   tbody.innerHTML = data.map(function(d) {
-    var colabs = (d.colaboradores||[]).map(function(c){ return c.nombre+" ("+c.cantidad+")"; }).join(", ") || "–";
+    var colabs = (d.colaboradores||[]).map(function(c){ return c.nombre+" ("+c.cantidad+")"+(c.obs?" - "+c.obs:""); }).join(", ") || "–";
     var estadoBadge = d.estado==="En curso" ? "badge-blue" : d.estado==="Finalizado" ? "badge-green" : "badge-yellow";
     var accs = "";
     if (isAdmin) {
@@ -1505,6 +1508,52 @@ function initProdCharts() { // called after render
       }
     });
   }
+
+  // Chart: units per colaborador this month
+  var now = new Date();
+  var mesActual = now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+  var colabUnits = {};
+  var colabEstados = {}; // name -> {enCurso, finalizado, pausado}
+  cacheProduccion.forEach(function(d) {
+    var fechaMes = (d.fechaIngreso||"").substring(0,7);
+    if (fechaMes !== mesActual) return;
+    (d.colaboradores||[]).forEach(function(c) {
+      if (!c.nombre) return;
+      if (!colabEstados[c.nombre]) colabEstados[c.nombre] = { "En curso":0, "Finalizado":0, "Pausado":0 };
+      var estado = d.estado||"En curso";
+      if (colabEstados[c.nombre][estado] !== undefined) {
+        colabEstados[c.nombre][estado] += (c.cantidad||0);
+      } else {
+        colabEstados[c.nombre]["En curso"] += (c.cantidad||0);
+      }
+    });
+  });
+  var colabNames = Object.keys(colabEstados);
+  var ctxC = document.getElementById("chart-prod-colabs");
+  if (ctxC) {
+    if (chartProdColabs) chartProdColabs.destroy();
+    chartProdColabs = new Chart(ctxC, {
+      type: "bar",
+      data: {
+        labels: colabNames.length ? colabNames : ["Sin datos"],
+        datasets: [
+          { label:"En curso",    data: colabNames.map(function(n){ return colabEstados[n]["En curso"]||0; }),    backgroundColor:"rgba(26,86,255,0.85)", borderRadius:4, borderWidth:0 },
+          { label:"Finalizado",  data: colabNames.map(function(n){ return colabEstados[n]["Finalizado"]||0; }),  backgroundColor:"rgba(34,197,94,0.85)",  borderRadius:4, borderWidth:0 },
+          { label:"Pausado",     data: colabNames.map(function(n){ return colabEstados[n]["Pausado"]||0; }),     backgroundColor:"rgba(245,158,11,0.85)", borderRadius:4, borderWidth:0 }
+        ]
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins:{
+          legend:{ labels:{ color:"#9A9A9A", font:{size:10}, boxWidth:10, padding:8 } }
+        },
+        scales:{
+          x:{ stacked:false, ticks:{color:"#9A9A9A", font:{size:10}}, grid:{display:false}, border:{display:false} },
+          y:{ stacked:false, ticks:{color:"#606060", font:{size:10}, maxTicksLimit:4}, grid:{color:"rgba(255,255,255,0.04)"}, border:{display:false} }
+        }
+      }
+    });
+  }
 }
 
 // Modal Producción
@@ -1538,7 +1587,7 @@ function openModalProduccion(id) {
       document.getElementById("prod-estado").value     = d.estado||"En curso";
       document.getElementById("prod-fecha-ing").value  = d.fechaIngreso||today;
       document.getElementById("prod-fecha-ent").value  = d.fechaEntrega||"";
-      (d.colaboradores||[]).forEach(function(c){ addColaboradorRow(c.nombre, c.cantidad); });
+      (d.colaboradores||[]).forEach(function(c){ addColaboradorRow(c.nombre, c.cantidad, c.obs||""); });
     }
   } else {
     document.getElementById("prod-proyecto").value   = "";
@@ -1550,12 +1599,23 @@ function openModalProduccion(id) {
   modal.classList.add("open");
 }
 
-function addColaboradorRow(nombre, cantidad) {
+function addColaboradorRow(nombre, cantidad, obs) {
   var list = document.getElementById("colaboradores-list");
   var row = document.createElement("div");
   row.className = "colaborador-row";
   var options = cacheColaboradores.map(function(c){ return "<option value=\""+esc(c.nombre)+"\" "+(nombre===c.nombre?"selected":"")+"\">"+esc(c.nombre)+"</option>"; }).join("");
-  row.innerHTML = "<select>"+options+"</select><input type=\"number\" placeholder=\"Unidades\" min=\"0\" value=\"" + (cantidad||"") + "\"><button class=\"btn btn-danger btn-sm btn-icon\" onclick=\"this.parentNode.remove()\">&#10005;</button>";
+  // Build via DOM to avoid escaping issues
+  var sel = document.createElement("select");
+  sel.innerHTML = options;
+  var inp1 = document.createElement("input");
+  inp1.type = "number"; inp1.placeholder = "Unidades"; inp1.min = "0"; inp1.value = cantidad||"";
+  var inp2 = document.createElement("input");
+  inp2.type = "text"; inp2.placeholder = "Observaciones"; inp2.value = obs||"";
+  var btn = document.createElement("button");
+  btn.className = "btn btn-danger btn-sm btn-icon";
+  btn.innerHTML = "&#10005;";
+  btn.onclick = function(){ row.remove(); };
+  row.appendChild(sel); row.appendChild(inp1); row.appendChild(inp2); row.appendChild(btn);
   list.appendChild(row);
 }
 
@@ -1574,8 +1634,8 @@ function saveProduccion() {
   var colabs = [];
   document.querySelectorAll("#colaboradores-list .colaborador-row").forEach(function(row) {
     var sel = row.querySelector("select");
-    var inp = row.querySelector("input");
-    if (sel && sel.value) colabs.push({ nombre: sel.value, cantidad: parseInt(inp.value)||0 });
+    var inputs = row.querySelectorAll("input");
+    if (sel && sel.value) colabs.push({ nombre: sel.value, cantidad: parseInt(inputs[0].value)||0, obs: inputs[1] ? inputs[1].value.trim() : "" });
   });
 
   var data = { cliente:cliente, proyecto:proyecto, linea:linea, unidad:unidad, cantidad:cantidad, estado:estado, fechaIngreso:fi, fechaEntrega:fe, colaboradores:colabs, updatedAt:firebase.firestore.FieldValue.serverTimestamp() };
