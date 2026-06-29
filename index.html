@@ -2177,16 +2177,47 @@ function filterFacturacion() {
 }
 
 function updateFactKPIs(data) {
-  var facturadas    = data.filter(function(d){ return d.facturado; });
-  var pendientes    = data.filter(function(d){ return !d.facturado; });
-  var totalFact     = facturadas.reduce(function(a,b){ return a+(b.valorTotal||0); }, 0);
-  var totalPend     = pendientes.reduce(function(a,b){ return a+(b.valorTotal||0); }, 0);
+  var facturadas = data.filter(function(d){ return !!d.facturado; });
+  var pendientes = data.filter(function(d){ return !d.facturado; });
+  var totalFact  = facturadas.reduce(function(a,b){ return a+(b.valorTotal||0); }, 0);
+  var totalPend  = pendientes.reduce(function(a,b){ return a+(b.valorTotal||0); }, 0);
+  var totalAll   = totalFact + totalPend;
+
+  // Valor promedio por línea (usando solo facturadas)
+  var lineaTotals = {};
+  var lineaCounts = {};
+  facturadas.forEach(function(d) {
+    var linea = d.linea||"Sin línea";
+    lineaTotals[linea] = (lineaTotals[linea]||0) + (d.valorTotal||0);
+    lineaCounts[linea] = (lineaCounts[linea]||0) + 1;
+  });
+  var promedioLines = Object.keys(lineaTotals).map(function(l){
+    return "<div>"+l+": <strong>$"+fmtMoney(Math.round(lineaTotals[l]/lineaCounts[l]))+"</strong></div>";
+  }).join("") || "<div>–</div>";
+
   var kEl = document.getElementById("fact-kpis");
-  if (kEl) kEl.innerHTML =
-    compactKpi("OPs facturadas", facturadas.length, "$"+fmtMoney(totalFact)) +
-    compactKpi("OPs pendientes", pendientes.length, "$"+fmtMoney(totalPend)) +
-    compactKpi("Total período", data.length, "$"+fmtMoney(totalFact+totalPend)) +
-    compactKpi("Valor promedio OP", data.length ? Math.round((totalFact+totalPend)/data.length) : 0, "por orden");
+  if (!kEl) return;
+  kEl.innerHTML =
+    factKpiCard("OPS FACTURADAS",        "$"+fmtMoney(totalFact), facturadas.length+" órdenes facturadas") +
+    factKpiCard("OPS PENDIENTES",        "$"+fmtMoney(totalPend), pendientes.length+" sin facturar") +
+    factKpiCard("TOTAL PERÍODO",         "$"+fmtMoney(totalAll),  data.length+" órdenes") +
+    factKpiCard2("PROMEDIO POR LÍNEA",   promedioLines);
+}
+
+function factKpiCard2(label, htmlContent) {
+  return "<div class=\"compact-kpi\">" +
+    "<span class=\"compact-kpi-label\">"+label+"</span>" +
+    "<div class=\"compact-kpi-right\" style=\"font-size:11px;font-family:var(--font-mono);color:var(--text-primary);line-height:1.6;\">"+htmlContent+"</div>" +
+  "</div>";
+}
+
+function factKpiCard(label, valueBig, valueSub) {
+  return "<div class=\"compact-kpi\">" +
+    "<span class=\"compact-kpi-label\">"+label+"</span>" +
+    "<div class=\"compact-kpi-right\">" +
+      "<div class=\"compact-kpi-value\">"+valueBig+"</div>" +
+      "<div class=\"compact-kpi-sub\">"+valueSub+"</div>" +
+    "</div></div>";
 }
 
 function renderFactRows(data) {
@@ -2214,88 +2245,114 @@ function renderFactRows(data) {
 }
 
 function toggleFacturado(opId, el) {
-  db.collection("ops").doc(opId).update({ facturado: el.checked }).then(function() {
+  var val = el.checked === true;
+  db.collection("ops").doc(opId).update({ facturado: val }).then(function() {
     var op = cacheOPs.find(function(o){ return o.id===opId; });
-    if (op) op.facturado = el.checked;
-    showToast(el.checked ? "Marcada como facturada" : "Desmarcada","success");
+    if (op) op.facturado = val;
+    showToast(val ? "Marcada como facturada" : "Desmarcada", "success");
+    // Refresh KPIs and charts without re-rendering full table
+    var data = getFactFilteredData();
+    updateFactKPIs(data);
+    setTimeout(function(){ initFactCharts(data); }, 80);
   });
 }
 function updateFacturaCodigo(opId, val) {
   db.collection("ops").doc(opId).update({ codigoFactura: val }).then(function() {
     var op = cacheOPs.find(function(o){ return o.id===opId; });
     if (op) op.codigoFactura = val;
+    var data = getFactFilteredData();
+    updateFactKPIs(data);
+    setTimeout(function(){ initFactCharts(data); }, 80);
   });
 }
 function updateFacturaFecha(opId, val) {
   db.collection("ops").doc(opId).update({ fechaFactura: val }).then(function() {
     var op = cacheOPs.find(function(o){ return o.id===opId; });
     if (op) op.fechaFactura = val;
+    var data = getFactFilteredData();
+    updateFactKPIs(data);
+    setTimeout(function(){ initFactCharts(data); }, 80);
   });
 }
 
 function initFactCharts(data) {
-  // By linea
-  var lineaMap = {};
-  data.filter(function(d){ return d.facturado; }).forEach(function(d){
-    lineaMap[d.linea||"Sin línea"] = (lineaMap[d.linea||"Sin línea"]||0)+(d.valorTotal||0);
+  // Chart 1: Valor facturado por línea de negocio (ALL data, not just facturadas)
+  var lineaFact = {};
+  var lineaPend = {};
+  data.forEach(function(d) {
+    var l = d.linea||"Sin línea";
+    if (!!d.facturado) {
+      lineaFact[l] = (lineaFact[l]||0) + (d.valorTotal||0);
+    } else {
+      lineaPend[l] = (lineaPend[l]||0) + (d.valorTotal||0);
+    }
   });
+  var allLineas = Array.from(new Set(Object.keys(lineaFact).concat(Object.keys(lineaPend)))).sort();
+
   var ctxL = document.getElementById("chart-fact-linea");
   if (ctxL) {
     if (chartFactLinea) chartFactLinea.destroy();
     chartFactLinea = new Chart(ctxL, {
       type: "bar",
       data: {
-        labels: Object.keys(lineaMap),
-        datasets:[{
-          data: Object.values(lineaMap),
-          backgroundColor: function(ctx) {
-            var g = ctxL.getContext("2d").createLinearGradient(0,0,ctxL.width,0);
-            g.addColorStop(0,"#1A56FF");
-            g.addColorStop(1,"#00C2FF");
-            return g;
+        labels: allLineas.length ? allLineas : ["Sin datos"],
+        datasets: [
+          {
+            label: "Facturado",
+            data: allLineas.map(function(l){ return lineaFact[l]||0; }),
+            backgroundColor: "rgba(34,197,94,0.85)",
+            borderRadius: 4, borderWidth: 0
           },
-          borderRadius: 4,
-          borderSkipped: false,
-          borderWidth: 0,
-          barThickness: 16
-        }]
+          {
+            label: "Pendiente",
+            data: allLineas.map(function(l){ return lineaPend[l]||0; }),
+            backgroundColor: "rgba(26,86,255,0.75)",
+            borderRadius: 4, borderWidth: 0
+          }
+        ]
       },
       options: {
         indexAxis: "y",
         maintainAspectRatio: false,
-        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: function(c){ return " $"+fmtMoney(c.raw); } } } },
+        plugins:{
+          legend:{ labels:{ color:"#9A9A9A", font:{size:10}, boxWidth:10, padding:8 } },
+          tooltip:{ callbacks:{ label: function(c){ return " "+c.dataset.label+": $"+fmtMoney(c.raw); } } }
+        },
         scales:{
-          x:{ ticks:{color:"#606060", font:{size:10}, callback: function(v){ return "$"+fmtMoney(v); }}, grid:{color:"rgba(255,255,255,0.04)"}, border:{display:false} },
-          y:{ ticks:{color:"#9A9A9A", font:{size:11}, padding:4}, grid:{display:false}, border:{display:false} }
+          x:{ stacked: false, ticks:{color:"#606060", font:{size:10}, callback: function(v){ return "$"+fmtMoney(v); }}, grid:{color:"rgba(255,255,255,0.04)"}, border:{display:false} },
+          y:{ stacked: false, ticks:{color:"#9A9A9A", font:{size:11}, padding:4}, grid:{display:false}, border:{display:false} }
         }
       }
     });
   }
-  // Acumulado mensual
+
+  // Chart 2: Acumulado facturado por fecha de factura
   var mesMap = {};
-  data.filter(function(d){ return d.facturado && d.fechaFactura; }).forEach(function(d){
-    var mes = d.fechaFactura.substring(0,7);
-    mesMap[mes] = (mesMap[mes]||0)+(d.valorTotal||0);
+  data.filter(function(d){ return !!d.facturado; }).forEach(function(d){
+    var fecha = d.fechaFactura || d.fecha || "";
+    if (!fecha) return;
+    var mes = fecha.substring(0,7);
+    mesMap[mes] = (mesMap[mes]||0) + (d.valorTotal||0);
   });
   var meses = Object.keys(mesMap).sort();
+
   var ctxA = document.getElementById("chart-fact-acum");
   if (ctxA) {
     if (chartFactAcum) chartFactAcum.destroy();
     chartFactAcum = new Chart(ctxA, {
       type: "bar",
       data: {
-        labels: meses,
+        labels: meses.length ? meses : ["Sin datos"],
         datasets:[{
-          data: meses.map(function(m){ return mesMap[m]; }),
+          label: "Facturado",
+          data: meses.length ? meses.map(function(m){ return mesMap[m]; }) : [0],
           backgroundColor: function(ctx2) {
-            var g2 = ctxA.getContext("2d").createLinearGradient(0,0,0,ctxA.height);
-            g2.addColorStop(0,"rgba(26,86,255,0.9)");
-            g2.addColorStop(1,"rgba(0,194,255,0.3)");
+            var g2 = ctxA.getContext("2d").createLinearGradient(0,0,0,120);
+            g2.addColorStop(0,"rgba(26,86,255,0.95)");
+            g2.addColorStop(1,"rgba(0,194,255,0.4)");
             return g2;
           },
-          borderRadius: 5,
-          borderSkipped: false,
-          borderWidth: 0
+          borderRadius: 5, borderSkipped: false, borderWidth: 0
         }]
       },
       options: {
@@ -2303,7 +2360,7 @@ function initFactCharts(data) {
         plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:function(c){ return " $"+fmtMoney(c.raw); } } } },
         scales:{
           x:{ ticks:{color:"#9A9A9A", font:{size:10}}, grid:{display:false}, border:{display:false} },
-          y:{ ticks:{ color:"#606060", font:{size:10}, maxTicksLimit:4, callback:function(v){ return "$"+fmtMoney(v); } }, grid:{color:"rgba(255,255,255,0.04)"}, border:{display:false} }
+          y:{ ticks:{ color:"#606060", font:{size:10}, maxTicksLimit:5, callback:function(v){ return "$"+fmtMoney(v); } }, grid:{color:"rgba(255,255,255,0.04)"}, border:{display:false} }
         }
       }
     });
