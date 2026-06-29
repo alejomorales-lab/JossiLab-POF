@@ -2765,7 +2765,7 @@ function importFacturacionExcel(input) {
   var reader = new FileReader();
   reader.onload = function(e) {
     try {
-      var wb = XLSX.read(e.target.result, { type: "binary", cellDates: true });
+      var wb = XLSX.read(e.target.result, { type: "binary", cellDates: false });
       var ws = wb.Sheets[wb.SheetNames[0]];
       var rows = XLSX.utils.sheet_to_json(ws, { defval: "" });
       if (!rows.length) { showToast("El archivo está vacío", "error"); return; }
@@ -2781,14 +2781,31 @@ function importFacturacionExcel(input) {
       }
 
       function parseDate(val) {
-        if (!val) return "";
-        if (val instanceof Date) return val.toISOString().split("T")[0];
+        if (!val && val !== 0) return "";
+        // JS Date object (cellDates:true)
+        if (val instanceof Date) {
+          var d = new Date(val);
+          return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+        }
+        // Excel serial number (integer like 45000)
+        if (typeof val === "number") {
+          // Excel epoch: Dec 30, 1899
+          var excelEpoch = new Date(1899, 11, 30);
+          var d2 = new Date(excelEpoch.getTime() + val * 86400000);
+          return d2.getFullYear()+"-"+String(d2.getMonth()+1).padStart(2,"0")+"-"+String(d2.getDate()).padStart(2,"0");
+        }
         var s = String(val).trim();
-        // DD/MM/YYYY
+        // DD/MM/YYYY or DD-MM-YYYY
         var m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
         if (m) return m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0");
+        // MM/DD/YYYY (US format, just in case)
+        var m2 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (m2 && parseInt(m2[1])>12) return m2[3]+"-"+m2[2].padStart(2,"0")+"-"+m2[1].padStart(2,"0");
         // YYYY-MM-DD
         if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0,10);
+        // DD/MM/YY
+        var m3 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})$/);
+        if (m3) { var yr = parseInt(m3[3]); yr = yr < 50 ? 2000+yr : 1900+yr; return yr+"-"+m3[2].padStart(2,"0")+"-"+m3[1].padStart(2,"0"); }
         return s;
       }
 
@@ -2818,11 +2835,11 @@ function importFacturacionExcel(input) {
           proyecto:     proyecto,
           linea:        String(getVal(row, ["línea","linea","line","línea de negocio"])||"").trim(),
           valorTotal:   parseMoney(getVal(row, ["valor total","valor","total","monto","amount"])),
-          fecha:        parseDate(getVal(row, ["fecha op","fecha","date","fecha orden"])),
+          fecha:        parseDate(getVal(row, ["fecha op","fecha orden","fecha","date","f. op","fecha de op"])),
           ft:           String(getVal(row, ["ft"])||"").trim(),
           facturado:    facturado,
           codigoFactura:String(getVal(row, ["código factura","codigo factura","factura","invoice","código"])||"").trim(),
-          fechaFactura: parseDate(getVal(row, ["fecha factura","fecha de factura","invoice date"])),
+          fechaFactura: parseDate(getVal(row, ["fecha factura","fecha de factura","f. factura","fechafactura","invoice date","fecha fact"])),
           observaciones:String(getVal(row, ["observaciones","observación","observacion","notas","notes"])||"").trim(),
           items:        [],
           importado:    true,
