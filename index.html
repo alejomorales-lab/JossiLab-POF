@@ -1563,7 +1563,7 @@ function renderProdRows(data) {
       }
       accs += "<button class=\"btn btn-danger btn-sm btn-icon\" onclick=\"deleteProduccion('"+d.id+"')\" title=\"Eliminar\">&#128465;</button>";
     }
-    return "<tr><td class=\"td-mono\">"+(d.consecutivo||"–")+"</td><td>"+esc(d.cliente)+"</td><td>"+esc(d.proyecto)+"</td><td>"+esc(d.linea)+"</td><td class=\"td-mono\">"+esc(d.cantidad)+"</td><td>"+esc(d.unidad)+"</td><td class=\"td-muted\" style=\"font-size:12px\">"+esc(colabs)+"</td><td class=\"td-muted\">"+fmtDate(d.fechaIngreso)+"</td><td class=\"td-muted\">"+fmtDate(d.fechaEntrega)+"</td><td><span class=\"badge "+estadoBadge+"</td><td style=\"white-space:nowrap\">"+accs+"</td></tr>";
+    return "<tr><td class=\"td-mono\">"+(d.consecutivo||"–")+"</td><td>"+esc(d.cliente)+"</td><td>"+esc(d.proyecto)+"</td><td>"+esc(d.linea)+"</td><td class=\"td-mono\">"+esc(d.cantidad)+"</td><td>"+esc(d.unidad)+"</td><td class=\"td-muted\" style=\"font-size:12px\">"+esc(colabs)+"</td><td class=\"td-muted\">"+fmtDate(d.fechaIngreso)+"</td><td class=\"td-muted\">"+fmtDate(d.fechaEntrega)+"</td><td>"+estadoBadge+"</td><td style=\"white-space:nowrap\">"+accs+"</td></tr>";
   }).join("");
 }
 
@@ -2153,16 +2153,16 @@ function renderFacturacion() {
   html += "<div class=\"dash-charts\">";
   html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Por l\u00ednea de negocio</div><canvas id=\"chart-fact-linea\" height=\"110\"></canvas></div>";
   html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Acumulado facturado</div><canvas id=\"chart-fact-acum\" height=\"110\"></canvas></div>";
-  html += "</div>";
   var _y = new Date().getFullYear();
-  html += "<div class=\"table-card\" style=\"margin-bottom:20px;padding:18px 20px;\">";
-  html += "<div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;\">";
-  html += "<span style=\"font-size:13px;font-weight:700;color:var(--text-primary)\">Facturaci\u00f3n mensual</span>";
-  html += "<div class=\"period-filter-bar\">";
+  html += "<div class=\"dash-chart-card\">";
+  html += "<div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;\">";
+  html += "<div class=\"chart-card-title\" style=\"margin-bottom:0\">Facturaci\u00f3n mensual</div>";
+  html += "<div class=\"period-filter-bar\" style=\"margin-left:0\">";
   html += "<button class=\"period-btn\" id=\"anual-btn-"+(_y-1)+"\" onclick=\"setAnualYear("+(_y-1)+")\">"+(_y-1)+"</button>";
   html += "<button class=\"period-btn active\" id=\"anual-btn-"+_y+"\" onclick=\"setAnualYear("+_y+")\" >"+_y+"</button>";
   html += "</div></div>";
-  html += "<canvas id=\"chart-fact-anual\" height=\"120\"></canvas>";
+  html += "<canvas id=\"chart-fact-anual\" height=\"110\"></canvas>";
+  html += "</div>";
   html += "</div>";
 
   html += "<div class=\"action-row\" style=\"margin-bottom:16px\">";
@@ -4312,7 +4312,7 @@ function renderProdRows(data) {
       }
       accs += "<button class=\"btn btn-danger btn-sm btn-icon\" onclick=\"deleteProduccion('"+d.id+"')\" title=\"Eliminar\">&#128465;</button>";
     }
-    return "<tr><td class=\"td-mono\">"+(d.consecutivo||"–")+"</td><td>"+esc(d.cliente)+"</td><td>"+esc(d.proyecto)+"</td><td>"+esc(d.linea)+"</td><td class=\"td-mono\">"+esc(d.cantidad)+"</td><td>"+esc(d.unidad)+"</td><td class=\"td-muted\" style=\"font-size:12px\">"+esc(colabs)+"</td><td class=\"td-muted\">"+fmtDate(d.fechaIngreso)+"</td><td class=\"td-muted\">"+fmtDate(d.fechaEntrega)+"</td><td><span class=\"badge "+estadoBadge+"\">"+esc(d.estado)+"</span></td><td style=\"white-space:nowrap\">"+accs+"</td></tr>";
+    return "<tr><td class=\"td-mono\">"+(d.consecutivo||"–")+"</td><td>"+esc(d.cliente)+"</td><td>"+esc(d.proyecto)+"</td><td>"+esc(d.linea)+"</td><td class=\"td-mono\">"+esc(d.cantidad)+"</td><td>"+esc(d.unidad)+"</td><td class=\"td-muted\" style=\"font-size:12px\">"+esc(colabs)+"</td><td class=\"td-muted\">"+fmtDate(d.fechaIngreso)+"</td><td class=\"td-muted\">"+fmtDate(d.fechaEntrega)+"</td><td>"+estadoBadge+"</td><td style=\"white-space:nowrap\">"+accs+"</td></tr>";
   }).join("");
 }
 
@@ -4902,16 +4902,16 @@ function renderFacturacion() {
   html += "<div class=\"dash-charts\">";
   html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Por l\u00ednea de negocio</div><canvas id=\"chart-fact-linea\" height=\"110\"></canvas></div>";
   html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Acumulado facturado</div><canvas id=\"chart-fact-acum\" height=\"110\"></canvas></div>";
-  html += "</div>";
   var _y = new Date().getFullYear();
-  html += "<div class=\"table-card\" style=\"margin-bottom:20px;padding:18px 20px;\">";
-  html += "<div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;\">";
-  html += "<span style=\"font-size:13px;font-weight:700;color:var(--text-primary)\">Facturaci\u00f3n mensual</span>";
-  html += "<div class=\"period-filter-bar\">";
+  html += "<div class=\"dash-chart-card\">";
+  html += "<div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;\">";
+  html += "<div class=\"chart-card-title\" style=\"margin-bottom:0\">Facturaci\u00f3n mensual</div>";
+  html += "<div class=\"period-filter-bar\" style=\"margin-left:0\">";
   html += "<button class=\"period-btn\" id=\"anual-btn-"+(_y-1)+"\" onclick=\"setAnualYear("+(_y-1)+")\">"+(_y-1)+"</button>";
   html += "<button class=\"period-btn active\" id=\"anual-btn-"+_y+"\" onclick=\"setAnualYear("+_y+")\" >"+_y+"</button>";
   html += "</div></div>";
-  html += "<canvas id=\"chart-fact-anual\" height=\"120\"></canvas>";
+  html += "<canvas id=\"chart-fact-anual\" height=\"110\"></canvas>";
+  html += "</div>";
   html += "</div>";
 
   html += "<div class=\"action-row\" style=\"margin-bottom:16px\">";
