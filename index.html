@@ -169,6 +169,48 @@ body {
   display: none;
 }
 
+/* ======== PERIOD FILTER BAR ======== */
+.period-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.period-btn {
+  padding: 5px 11px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--font-ui);
+  transition: all .15s;
+  white-space: nowrap;
+}
+.period-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.period-btn.active { background: var(--accent-dim); color: var(--accent); border-color: var(--accent-border); }
+.period-range-wrap {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.period-range-wrap input[type=date] {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 11px;
+  outline: none;
+  display: none;
+}
+.period-range-wrap.visible input[type=date] { display: block; }
+.period-range-sep { font-size: 11px; color: var(--text-muted); display: none; }
+.period-range-wrap.visible .period-range-sep { display: block; }
+
 /* ======== APP SHELL ======== */
 #app { display: none; height: 100vh; overflow: hidden; width: 100vw; }
 
@@ -189,7 +231,6 @@ body {
 }
 .sidebar-logo {
   width: 110px;
-  filter: invert(1);
   display: block;
 }
 .sidebar-system {
@@ -1179,6 +1220,84 @@ var editingOpId     = null;
 var opSourceProdId  = null;
 var configTab       = "colaboradores";
 
+// ── Global period filter ──
+var activePeriod = "mes_actual"; // mes_actual | mes | trimestre | semestre | anio | todo | rango
+var rangeDesde   = "";
+var rangeHasta   = "";
+
+function getPeriodDates() {
+  var now = new Date();
+  var y = now.getFullYear();
+  var m = now.getMonth();
+  if (activePeriod === "mes_actual") {
+    var desde = new Date(y, m, 1).toISOString().split("T")[0];
+    var hasta = new Date(y, m+1, 0).toISOString().split("T")[0];
+    return { desde: desde, hasta: hasta };
+  } else if (activePeriod === "mes") {
+    var desde = new Date(y, m, 1).toISOString().split("T")[0];
+    var hasta = new Date(y, m+1, 0).toISOString().split("T")[0];
+    return { desde: desde, hasta: hasta };
+  } else if (activePeriod === "trimestre") {
+    var q = Math.floor(m/3);
+    var desde = new Date(y, q*3, 1).toISOString().split("T")[0];
+    var hasta = new Date(y, q*3+3, 0).toISOString().split("T")[0];
+    return { desde: desde, hasta: hasta };
+  } else if (activePeriod === "semestre") {
+    var s = m < 6 ? 0 : 6;
+    var desde = new Date(y, s, 1).toISOString().split("T")[0];
+    var hasta = new Date(y, s+6, 0).toISOString().split("T")[0];
+    return { desde: desde, hasta: hasta };
+  } else if (activePeriod === "anio") {
+    return { desde: y+"-01-01", hasta: y+"-12-31" };
+  } else if (activePeriod === "rango") {
+    return { desde: rangeDesde, hasta: rangeHasta };
+  }
+  return { desde: "", hasta: "" }; // todo
+}
+
+function filterByPeriod(arr, dateField) {
+  var pd = getPeriodDates();
+  if (!pd.desde && !pd.hasta) return arr;
+  return arr.filter(function(d) {
+    var dt = d[dateField]||"";
+    if (pd.desde && dt < pd.desde) return false;
+    if (pd.hasta && dt > pd.hasta) return false;
+    return true;
+  });
+}
+
+function buildPeriodBar(activePage) {
+  var periods = [
+    { key:"mes_actual", label:"Mes actual" },
+    { key:"trimestre",  label:"Trimestre"  },
+    { key:"semestre",   label:"Semestre"   },
+    { key:"anio",       label:"Año"        },
+    { key:"todo",       label:"Todo"       },
+    { key:"rango",      label:"Rango"      }
+  ];
+  var html = "<div class=\"period-filter-bar\" id=\"period-bar\">";
+  periods.forEach(function(p) {
+    html += "<button class=\"period-btn "+(activePeriod===p.key?"active":"")+"\" onclick=\"setPeriod('"+p.key+"')\">" + p.label + "</button>";
+  });
+  html += "<div class=\"period-range-wrap "+(activePeriod==="rango"?"visible":"")+"\" id=\"range-wrap\">";
+  html += "<input type=\"date\" id=\"range-desde\" value=\""+rangeDesde+"\" onchange=\"rangeDesde=this.value;reloadCurrentPage()\">";
+  html += "<span class=\"period-range-sep\">→</span>";
+  html += "<input type=\"date\" id=\"range-hasta\" value=\""+rangeHasta+"\" onchange=\"rangeHasta=this.value;reloadCurrentPage()\">";
+  html += "</div></div>";
+  return html;
+}
+
+function setPeriod(key) {
+  activePeriod = key;
+  reloadCurrentPage();
+}
+
+function reloadCurrentPage() {
+  if (currentPage === "produccion")    renderProduccion();
+  else if (currentPage === "ops")      renderOPs();
+  else if (currentPage === "facturacion") renderFacturacion();
+}
+
 // Cache
 var cacheClientes     = [];
 var cacheColaboradores= [];
@@ -1365,7 +1484,7 @@ function reloadCache(col) {
 // ============================================================
 function renderProduccion() {
   var isAdmin = currentUserData.rol === "Administrador";
-  var data = cacheProduccion;
+  var data = filterByPeriod(cacheProduccion, "fechaIngreso");
 
   // KPIs
   var enCurso    = data.filter(function(d){ return d.estado === "En curso"; }).length;
@@ -1403,7 +1522,7 @@ function renderProduccion() {
 
   document.getElementById("page-body").innerHTML = html;
   document.getElementById("topbar-badge").textContent = "Producción";
-  document.getElementById("topbar-actions").innerHTML = "";
+  document.getElementById("topbar-actions").innerHTML = buildPeriodBar("produccion");
 
   renderProdRows(data);
   setTimeout(initProdCharts, 100);
@@ -1437,7 +1556,8 @@ function renderProdRows(data) {
 
 function filterProduccion() {
   var q = document.getElementById("search-prod").value.toLowerCase();
-  var filtered = cacheProduccion.filter(function(d){
+  var base = filterByPeriod(cacheProduccion, "fechaIngreso");
+  var filtered = base.filter(function(d){
     return (d.cliente||"").toLowerCase().includes(q) || (d.proyecto||"").toLowerCase().includes(q) || (d.linea||"").toLowerCase().includes(q);
   });
   renderProdRows(filtered);
@@ -1509,14 +1629,13 @@ function initProdCharts() { // called after render
     });
   }
 
-  // Chart: units per colaborador this month
-  var now = new Date();
-  var mesActual = now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0");
+  // Chart: units per colaborador (período actual)
   var colabUnits = {};
   var colabEstados = {}; // name -> {enCurso, finalizado, pausado}
-  cacheProduccion.forEach(function(d) {
+  // For colabs chart, always use global period filter
+  var prodFiltered = filterByPeriod(cacheProduccion, "fechaIngreso");
+  prodFiltered.forEach(function(d) {
     var fechaMes = (d.fechaIngreso||"").substring(0,7);
-    if (fechaMes !== mesActual) return;
     (d.colaboradores||[]).forEach(function(c) {
       if (!c.nombre) return;
       if (!colabEstados[c.nombre]) colabEstados[c.nombre] = { "En curso":0, "Finalizado":0, "Pausado":0 };
@@ -1694,7 +1813,7 @@ function pasarAOP(prodId) {
 // ===  MÓDULO OPs  ===========================================
 // ============================================================
 function renderOPs() {
-  var data = cacheOPs;
+  var data = filterByPeriod(cacheOPs, "fecha");
   var totalOPs   = data.length;
   var totalValor = data.reduce(function(a,b){ return a+(b.valorTotal||0); }, 0);
 
@@ -1715,7 +1834,7 @@ function renderOPs() {
 
   document.getElementById("page-body").innerHTML = html;
   document.getElementById("topbar-badge").textContent = "OPs";
-  document.getElementById("topbar-actions").innerHTML = "";
+  document.getElementById("topbar-actions").innerHTML = buildPeriodBar("ops");
 
   renderOPRows(data);
 }
@@ -1739,7 +1858,8 @@ function renderOPRows(data) {
 
 function filterOPs() {
   var q = document.getElementById("search-ops").value.toLowerCase();
-  var filtered = cacheOPs.filter(function(d){
+  var base = filterByPeriod(cacheOPs, "fecha");
+  var filtered = base.filter(function(d){
     return (d.cliente||"").toLowerCase().includes(q)||(d.proyecto||"").toLowerCase().includes(q)||String(d.consecutivo||"").includes(q);
   });
   renderOPRows(filtered);
@@ -2022,13 +2142,7 @@ function renderFacturacion() {
   html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Acumulado facturado</div><canvas id=\"chart-fact-acum\" height=\"110\"></canvas></div>";
   html += "</div>";
 
-  // Filtros
   html += "<div class=\"action-row\" style=\"margin-bottom:16px\">";
-  html += "<select id=\"fact-filtro\" onchange=\"applyFactFiltro()\" style=\"background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;color:var(--text-primary);font-family:var(--font-ui);font-size:13px;outline:none\">";
-  html += "<option value=\"todo\">Todo el tiempo</option><option value=\"mes\">Este mes</option><option value=\"trimestre\">Este trimestre</option><option value=\"semestre\">Este semestre</option><option value=\"anio\">Este a\u00f1o</option>";
-  html += "</select>";
-  html += "<input type=\"date\" id=\"fact-desde\" onchange=\"applyFactFiltro()\" style=\"background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;color:var(--text-primary);font-family:var(--font-ui);font-size:13px;outline:none\">";
-  html += "<input type=\"date\" id=\"fact-hasta\" onchange=\"applyFactFiltro()\" style=\"background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;color:var(--text-primary);font-family:var(--font-ui);font-size:13px;outline:none\">";
   html += "<button class=\"btn btn-ghost\" onclick=\"exportFacturacionExcel()\">\u2191 Exportar Excel</button>";
   html += "<input type=\"text\" class=\"table-search\" id=\"search-fact\" placeholder=\"Buscar...\" oninput=\"filterFacturacion()\" style=\"margin-left:auto\">";
   html += "</div>";
@@ -2039,28 +2153,12 @@ function renderFacturacion() {
 
   document.getElementById("page-body").innerHTML = html;
   document.getElementById("topbar-badge").textContent = "Facturaci\u00f3n";
-  document.getElementById("topbar-actions").innerHTML = "";
+  document.getElementById("topbar-actions").innerHTML = buildPeriodBar("facturacion");
 
   applyFactFiltro();
 }
 function getFactFilteredData() {
-  var filtro  = (document.getElementById("fact-filtro")||{}).value||"todo";
-  var desde   = (document.getElementById("fact-desde")||{}).value||"";
-  var hasta   = (document.getElementById("fact-hasta")||{}).value||"";
-  var now     = new Date();
-  var data    = cacheOPs.slice();
-
-  if (filtro !== "todo" && !desde) {
-    var start = new Date(now);
-    if (filtro === "mes")       start = new Date(now.getFullYear(), now.getMonth(), 1);
-    if (filtro === "trimestre") start = new Date(now.getFullYear(), Math.floor(now.getMonth()/3)*3, 1);
-    if (filtro === "semestre")  start = new Date(now.getFullYear(), Math.floor(now.getMonth()/6)*6, 1);
-    if (filtro === "anio")      start = new Date(now.getFullYear(), 0, 1);
-    data = data.filter(function(d){ return d.fecha >= start.toISOString().split("T")[0]; });
-  }
-  if (desde) data = data.filter(function(d){ return d.fecha >= desde; });
-  if (hasta) data = data.filter(function(d){ return d.fecha <= hasta; });
-  return data;
+  return filterByPeriod(cacheOPs, "fecha");
 }
 
 function applyFactFiltro() {
