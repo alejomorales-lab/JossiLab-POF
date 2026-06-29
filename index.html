@@ -99,7 +99,7 @@ body {
   width: 140px;
   margin: 0 auto 32px;
   display: block;
-  filter: invert(1);
+  filter: none;
 }
 .login-title {
   font-size: 13px;
@@ -332,15 +332,15 @@ body {
 /* Charts */
 .charts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 16px;
-  margin-bottom: 28px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
 }
 .chart-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 20px;
+  padding: 14px 16px;
 }
 .chart-card-title {
   font-size: 12px;
@@ -956,9 +956,12 @@ tbody td {
       </div>
       <div class="field-row cols-1">
         <div class="field">
-          <label>Contraseña inicial</label>
-          <input type="password" id="colab-pass" placeholder="Mínimo 6 caracteres">
+          <label>URL Avatar (opcional)</label>
+          <input type="url" id="colab-avatar-url" placeholder="https://... (URL de imagen)">
         </div>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:-8px;margin-bottom:8px;">
+        Nota: La cuenta de acceso al sistema debe crearse en Firebase Console (Authentication).
       </div>
     </div>
     <div class="modal-footer">
@@ -1226,7 +1229,17 @@ function navigate(page) {
   if (page === "produccion")    renderProduccion();
   else if (page === "ops")      renderOPs();
   else if (page === "facturacion") renderFacturacion();
-  else if (page === "configuracion") renderConfiguracion();
+  else if (page === "configuracion") {
+    reloadCache("colaboradores").then(function(){
+      reloadCache("clientes").then(function(){
+        reloadCache("lineas").then(function(){
+          reloadCache("precios").then(function(){
+            renderConfiguracion();
+          });
+        });
+      });
+    });
+  }
 }
 
 // ============================================================
@@ -1296,8 +1309,8 @@ function renderProduccion() {
 
   // Charts row
   html += "<div class=\"charts-grid\" style=\"margin-bottom:24px\">";
-  html += "<div class=\"chart-card\"><div class=\"chart-card-title\">Por línea de negocio</div><canvas id=\"chart-prod-linea\" height=\"200\"></canvas></div>";
-  html += "<div class=\"chart-card\"><div class=\"chart-card-title\">Por estado</div><canvas id=\"chart-prod-estado\" height=\"200\"></canvas></div>";
+  html += "<div class=\"chart-card\"><div class=\"chart-card-title\">Por línea de negocio</div><canvas id=\"chart-prod-linea\" height=\"120\"></canvas></div>";
+  html += "<div class=\"chart-card\"><div class=\"chart-card-title\">Por estado</div><canvas id=\"chart-prod-estado\" height=\"120\"></canvas></div>";
   html += "</div>";
 
   // Action row
@@ -1356,7 +1369,7 @@ function filterProduccion() {
   renderProdRows(filtered);
 }
 
-function initProdCharts() {
+function initProdCharts() { // called after render
   // By line
   var lineaCounts = {};
   cacheProduccion.forEach(function(d){ lineaCounts[d.linea||"Sin línea"] = (lineaCounts[d.linea||"Sin línea"]||0)+1; });
@@ -1782,8 +1795,8 @@ function sendOpEmail() {
 function renderFacturacion() {
   var html = "<div class=\"kpi-grid\" id=\"fact-kpis\"></div>";
   html += "<div class=\"charts-grid\" style=\"margin-bottom:24px\">";
-  html += "<div class=\"chart-card\"><div class=\"chart-card-title\">Por línea de negocio</div><canvas id=\"chart-fact-linea\" height=\"200\"></canvas></div>";
-  html += "<div class=\"chart-card\"><div class=\"chart-card-title\">Acumulado facturado</div><canvas id=\"chart-fact-acum\" height=\"200\"></canvas></div>";
+  html += "<div class=\"chart-card\"><div class=\"chart-card-title\">Por línea de negocio</div><canvas id=\"chart-fact-linea\" height=\"120\"></canvas></div>";
+  html += "<div class=\"chart-card\"><div class=\"chart-card-title\">Acumulado facturado</div><canvas id=\"chart-fact-acum\" height=\"120\"></canvas></div>";
   html += "</div>";
 
   // Filtros
@@ -1981,7 +1994,8 @@ function renderConfigColaboradores(ct) {
   if (!cacheColaboradores.length) html += "<tr><td colspan=\"5\"><div class=\"empty-state\"><div class=\"empty-icon\">&#128101;</div><div class=\"empty-text\">Sin colaboradores</div></div></td></tr>";
   else html += cacheColaboradores.map(function(c) {
     var rolBadge = c.rol==="Administrador"?"badge-blue":c.rol==="Facturador"?"badge-purple":"badge-grey";
-    return "<tr><td><strong>"+esc(c.nombre)+"</strong></td><td class=\"td-muted\">"+esc(c.cargo||"–")+"</td><td class=\"td-muted\">"+esc(c.email||"–")+"</td><td><span class=\"badge "+rolBadge+"\">"+esc(c.rol)+"</span></td><td><button class=\"btn btn-danger btn-sm\" onclick=\"deleteColaborador('"+c.id+"')\" >Eliminar</button></td></tr>";
+    var avatarHtml = c.avatar ? "<img src=\""+esc(c.avatar)+"\" style=\"width:28px;height:28px;border-radius:50%;object-fit:cover;margin-right:8px;\">" : "<div style=\"width:28px;height:28px;border-radius:50%;background:var(--accent-dim);border:1px solid var(--accent-border);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--accent);margin-right:8px;\">"+(c.nombre||"?").charAt(0).toUpperCase()+"</div>";
+    return "<tr><td style=\"display:flex;align-items:center\">"+avatarHtml+"<strong>"+esc(c.nombre)+"</strong></td><td class=\"td-muted\">"+esc(c.cargo||"–")+"</td><td class=\"td-muted\">"+esc(c.email||"–")+"</td><td><span class=\"badge "+rolBadge+"\">"+esc(c.rol)+"</span></td><td><button class=\"btn btn-danger btn-sm\" onclick=\"deleteColaborador('"+c.id+"')\" >Eliminar</button></td></tr>";
   }).join("");
   html += "</tbody></table></div></div>";
   ct.innerHTML = html;
@@ -2056,18 +2070,21 @@ function saveColaborador() {
   var email  = document.getElementById("colab-email").value.trim();
   var cargo  = document.getElementById("colab-cargo").value.trim();
   var rol    = document.getElementById("colab-rol").value;
-  var pass   = document.getElementById("colab-pass").value;
-  if (!nombre || !email || !pass) { showToast("Completa todos los campos","error"); return; }
+  var avatar = document.getElementById("colab-avatar-url").value.trim();
+  if (!nombre || !email) { showToast("Nombre y correo son obligatorios","error"); return; }
 
-  auth.createUserWithEmailAndPassword(email, pass)
-    .then(function(cred) {
-      return db.collection("usuarios").doc(cred.user.uid).set({ nombre:nombre, email:email, cargo:cargo, rol:rol });
+  // Save to Firestore collaborators collection
+  var colabData = { nombre:nombre, email:email, cargo:cargo, rol:rol, avatar:avatar||"" };
+  db.collection("colaboradores").add(colabData)
+    .then(function(ref) {
+      // Also create/update in usuarios with a placeholder UID based on email
+      // Admin must create the Auth account separately in Firebase Console
+      return db.collection("usuarios_pendientes").doc(ref.id).set(
+        Object.assign({ colabId: ref.id, pendienteAuth: true }, colabData)
+      );
     })
     .then(function() {
-      return db.collection("colaboradores").add({ nombre:nombre, email:email, cargo:cargo, rol:rol });
-    })
-    .then(function() {
-      showToast("Colaborador creado","success");
+      showToast("Colaborador guardado. Crea su cuenta en Firebase Auth Console.","success");
       closeModal("modal-colaborador");
       reloadCache("colaboradores").then(function(){ if(currentPage==="configuracion") renderConfiguracion(); });
     })
