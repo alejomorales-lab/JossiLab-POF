@@ -331,6 +331,71 @@ body {
 .kpi-value { font-size: 22px; font-weight: 700; color: var(--text-primary); font-family: var(--font-mono); }
 .kpi-sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 
+/* ── Compact Dashboard Row (TC-Monitor style) ── */
+.dash-row {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 16px;
+  align-items: stretch;
+}
+.dash-kpis {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 200px;
+  flex-shrink: 0;
+}
+.compact-kpi {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.compact-kpi-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.compact-kpi-right { text-align: right; }
+.compact-kpi-value {
+  font-size: 20px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  line-height: 1;
+}
+.compact-kpi-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.dash-charts {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+.dash-chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.dash-chart-card canvas {
+  flex: 1;
+}
+
 /* Charts */
 .charts-grid {
   display: grid;
@@ -1302,17 +1367,20 @@ function renderProduccion() {
   var total      = data.length;
   var totalUnid  = data.reduce(function(a,b){ return a+(b.cantidad||0); }, 0);
 
-  var html = "<div class=\"kpi-grid\">";
-  html += kpiCard("Total trabajos", total, "todos los registros");
-  html += kpiCard("En curso", enCurso, "trabajos activos");
-  html += kpiCard("Finalizados", finaliz, "completados");
-  html += kpiCard("Unidades totales", totalUnid, "en producción");
+  // Compact dashboard row: KPIs left + Charts right
+  var html = "<div class=\"dash-row\">";
+  // KPI column
+  html += "<div class=\"dash-kpis\">";
+  html += compactKpi("Total", total, "trabajos");
+  html += compactKpi("En curso", enCurso, "activos");
+  html += compactKpi("Finalizados", finaliz, "completados");
+  html += compactKpi("Unidades", totalUnid, "en prod.");
   html += "</div>";
-
-  // Charts row
-  html += "<div class=\"charts-grid\" style=\"margin-bottom:24px\">";
-  html += "<div class=\"chart-card\"><div class=\"chart-card-title\">Por línea de negocio</div><canvas id=\"chart-prod-linea\" height=\"120\"></canvas></div>";
-  html += "<div class=\"chart-card\"><div class=\"chart-card-title\">Por estado</div><canvas id=\"chart-prod-estado\" height=\"120\"></canvas></div>";
+  // Charts column
+  html += "<div class=\"dash-charts\">";
+  html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Por línea</div><canvas id=\"chart-prod-linea\" height=\"90\"></canvas></div>";
+  html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Por estado</div><canvas id=\"chart-prod-estado\" height=\"90\"></canvas></div>";
+  html += "</div>";
   html += "</div>";
 
   // Action row
@@ -1795,34 +1863,34 @@ function sendOpEmail() {
 // ===  MÓDULO FACTURACIÓN  ===================================
 // ============================================================
 function renderFacturacion() {
-  var html = "<div class=\"kpi-grid\" id=\"fact-kpis\"></div>";
-  html += "<div class=\"charts-grid\" style=\"margin-bottom:24px\">";
-  html += "<div class=\"chart-card\"><div class=\"chart-card-title\">Por línea de negocio</div><canvas id=\"chart-fact-linea\" height=\"120\"></canvas></div>";
-  html += "<div class=\"chart-card\"><div class=\"chart-card-title\">Acumulado facturado</div><canvas id=\"chart-fact-acum\" height=\"120\"></canvas></div>";
-  html += "</div>";
+  var html = "<div class=\"dash-row\">";
+  html += "<div class=\"dash-kpis\" id=\"fact-kpis\"></div>";
+  html += "<div class=\"dash-charts\">";
+  html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Por l\u00ednea</div><canvas id=\"chart-fact-linea\" height=\"90\"></canvas></div>";
+  html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Acumulado</div><canvas id=\"chart-fact-acum\" height=\"90\"></canvas></div>";
+  html += "</div></div>";
 
   // Filtros
   html += "<div class=\"action-row\" style=\"margin-bottom:16px\">";
   html += "<select id=\"fact-filtro\" onchange=\"applyFactFiltro()\" style=\"background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;color:var(--text-primary);font-family:var(--font-ui);font-size:13px;outline:none\">";
-  html += "<option value=\"todo\">Todo el tiempo</option><option value=\"mes\">Este mes</option><option value=\"trimestre\">Este trimestre</option><option value=\"semestre\">Este semestre</option><option value=\"anio\">Este año</option>";
+  html += "<option value=\"todo\">Todo el tiempo</option><option value=\"mes\">Este mes</option><option value=\"trimestre\">Este trimestre</option><option value=\"semestre\">Este semestre</option><option value=\"anio\">Este a\u00f1o</option>";
   html += "</select>";
   html += "<input type=\"date\" id=\"fact-desde\" onchange=\"applyFactFiltro()\" style=\"background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;color:var(--text-primary);font-family:var(--font-ui);font-size:13px;outline:none\">";
   html += "<input type=\"date\" id=\"fact-hasta\" onchange=\"applyFactFiltro()\" style=\"background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;color:var(--text-primary);font-family:var(--font-ui);font-size:13px;outline:none\">";
-  html += "<button class=\"btn btn-ghost\" onclick=\"exportFacturacionExcel()\">&#8593; Exportar Excel</button>";
+  html += "<button class=\"btn btn-ghost\" onclick=\"exportFacturacionExcel()\">\u2191 Exportar Excel</button>";
   html += "<input type=\"text\" class=\"table-search\" id=\"search-fact\" placeholder=\"Buscar...\" oninput=\"filterFacturacion()\" style=\"margin-left:auto\">";
   html += "</div>";
 
   html += "<div class=\"table-card\">";
-  html += "<div class=\"table-header\"><span class=\"table-title\">Control de Facturación</span><span class=\"table-count\" id=\"fact-count\">"+ cacheOPs.length+"</span></div>";
-  html += "<div class=\"tbl-wrap\"><table><thead><tr><th>OP #</th><th>Cliente</th><th>Proyecto</th><th>Línea</th><th>Valor total</th><th>Fecha OP</th><th>Facturado</th><th>Código factura</th><th>Fecha factura</th></tr></thead><tbody id=\"fact-tbody\"></tbody></table></div></div>";
+  html += "<div class=\"table-header\"><span class=\"table-title\">Control de Facturaci\u00f3n</span><span class=\"table-count\" id=\"fact-count\">"+ cacheOPs.length+"</span></div>";
+  html += "<div class=\"tbl-wrap\"><table><thead><tr><th>OP #</th><th>Cliente</th><th>Proyecto</th><th>L\u00ednea</th><th>Valor total</th><th>Fecha OP</th><th>Facturado</th><th>C\u00f3digo factura</th><th>Fecha factura</th></tr></thead><tbody id=\"fact-tbody\"></tbody></table></div></div>";
 
   document.getElementById("page-body").innerHTML = html;
-  document.getElementById("topbar-badge").textContent = "Facturación";
+  document.getElementById("topbar-badge").textContent = "Facturaci\u00f3n";
   document.getElementById("topbar-actions").innerHTML = "";
 
   applyFactFiltro();
 }
-
 function getFactFilteredData() {
   var filtro  = (document.getElementById("fact-filtro")||{}).value||"todo";
   var desde   = (document.getElementById("fact-desde")||{}).value||"";
@@ -1865,9 +1933,9 @@ function updateFactKPIs(data) {
   var totalPend     = pendientes.reduce(function(a,b){ return a+(b.valorTotal||0); }, 0);
   var kEl = document.getElementById("fact-kpis");
   if (kEl) kEl.innerHTML =
-    kpiCard("OPs facturadas", facturadas.length, "$"+fmtMoney(totalFact)+" facturado") +
-    kpiCard("OPs pendientes", pendientes.length, "$"+fmtMoney(totalPend)+" por facturar") +
-    kpiCard("Total período", data.length, "$"+fmtMoney(totalFact+totalPend));
+    compactKpi("Facturadas", facturadas.length, "$"+fmtMoney(totalFact)) +
+    compactKpi("Pendientes", pendientes.length, "$"+fmtMoney(totalPend)) +
+    compactKpi("Total período", data.length, "$"+fmtMoney(totalFact+totalPend));
 }
 
 function renderFactRows(data) {
@@ -2223,6 +2291,9 @@ function fmtMoney(n) {
   return Math.round(n).toLocaleString("es-CO");
 }
 
+function compactKpi(label, value, sub) {
+  return "<div class=\"compact-kpi\"><span class=\"compact-kpi-label\">"+label+"</span><div class=\"compact-kpi-right\"><div class=\"compact-kpi-value\">"+value+"</div><div class=\"compact-kpi-sub\">"+sub+"</div></div></div>";
+}
 function kpiCard(label, value, sub) {
   return "<div class=\"kpi-card\"><div class=\"kpi-label\">"+label+"</div><div class=\"kpi-value\">"+value+"</div><div class=\"kpi-sub\">"+sub+"</div></div>";
 }
