@@ -1262,7 +1262,10 @@ function filterByPeriod(arr, dateField) {
   var pd = getPeriodDates();
   if (!pd.desde && !pd.hasta) return arr;
   return arr.filter(function(d) {
+    // For OPs: use fechaFactura as fallback when fecha is empty
     var dt = d[dateField]||"";
+    if (!dt && dateField === "fecha") dt = d.fechaFactura||"";
+    if (!dt) return true; // no date = always include
     if (pd.desde && dt < pd.desde) return false;
     if (pd.hasta && dt > pd.hasta) return false;
     return true;
@@ -2808,6 +2811,15 @@ function importFacturacionExcel(input) {
         if (m3) { var yr = parseInt(m3[3]); yr = yr < 50 ? 2000+yr : 1900+yr; return yr+"-"+m3[2].padStart(2,"0")+"-"+m3[1].padStart(2,"0"); }
         return s;
       }
+      function validateDate(s) {
+        if (!s) return "";
+        // Validate the date is real (e.g. not 2025-02-30)
+        var p = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!p) return s;
+        var d = new Date(parseInt(p[1]), parseInt(p[2])-1, parseInt(p[3]));
+        if (d.getFullYear()!==parseInt(p[1]) || d.getMonth()!==parseInt(p[2])-1 || d.getDate()!==parseInt(p[3])) return "";
+        return s;
+      }
 
       function parseMoney(val) {
         if (typeof val === "number") return val;
@@ -2835,11 +2847,11 @@ function importFacturacionExcel(input) {
           proyecto:     proyecto,
           linea:        String(getVal(row, ["línea","linea","line","línea de negocio"])||"").trim(),
           valorTotal:   parseMoney(getVal(row, ["valor total","valor","total","monto","amount"])),
-          fecha:        parseDate(getVal(row, ["fecha op","fecha orden","fecha","date","f. op","fecha de op"])),
+          fecha:        validateDate(parseDate(getVal(row, ["fecha op","fecha orden","fecha","date","f. op","fecha de op"]))),
           ft:           String(getVal(row, ["ft"])||"").trim(),
           facturado:    facturado,
           codigoFactura:String(getVal(row, ["código factura","codigo factura","factura","invoice","código"])||"").trim(),
-          fechaFactura: parseDate(getVal(row, ["fecha factura","fecha de factura","f. factura","fechafactura","invoice date","fecha fact"])),
+          fechaFactura: validateDate(parseDate(getVal(row, ["fecha factura","fecha de factura","f. factura","fechafactura","invoice date","fecha fact"]))),
           observaciones:String(getVal(row, ["observaciones","observación","observacion","notas","notes"])||"").trim(),
           items:        [],
           importado:    true,
@@ -4202,7 +4214,10 @@ function filterByPeriod(arr, dateField) {
   var pd = getPeriodDates();
   if (!pd.desde && !pd.hasta) return arr;
   return arr.filter(function(d) {
+    // For OPs: use fechaFactura as fallback when fecha is empty
     var dt = d[dateField]||"";
+    if (!dt && dateField === "fecha") dt = d.fechaFactura||"";
+    if (!dt) return true; // no date = always include
     if (pd.desde && dt < pd.desde) return false;
     if (pd.hasta && dt > pd.hasta) return false;
     return true;
