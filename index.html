@@ -763,7 +763,7 @@ tbody td {
 
 /* PDF preview (hidden, used for generation) */
 #pdf-preview {
-  position: fixed;
+  position: absolute;
   left: -9999px;
   top: 0;
   width: 794px;
@@ -771,6 +771,7 @@ tbody td {
   font-family: Arial, sans-serif;
   padding: 48px 56px;
   color: #111;
+  visibility: hidden;
 }
 
 /* Scrollbar */
@@ -1887,23 +1888,47 @@ function downloadOpPDFById(opId) {
 }
 
 function renderPDFAndDownload(op) {
+  // Build content in a temporary off-screen div
   var preview = document.getElementById("pdf-preview");
   preview.innerHTML = buildOpPDFHtml(op);
-  preview.style.left = "0";
-  preview.style.zIndex = "-1";
+  // Make visible but off-screen for html2canvas
+  preview.style.visibility = "visible";
+  preview.style.left = "-9999px";
   preview.style.position = "absolute";
 
-  html2canvas(preview, { scale:1.5, useCORS:true, logging:false }).then(function(canvas) {
-    var imgData = canvas.toDataURL("image/jpeg", 0.92);
-    var pdf = new window.jspdf.jsPDF("p","pt","a4");
-    var pW  = pdf.internal.pageSize.getWidth();
-    var pH  = pdf.internal.pageSize.getHeight();
-    var ratio = pW / canvas.width;
-    pdf.addImage(imgData,"JPEG",0,0,pW, canvas.height*ratio);
-    pdf.save("OP-"+(op.consecutivo||"0")+"-"+esc(op.cliente)+".pdf");
-    preview.style.left = "-9999px";
-    showToast("PDF descargado","success");
-  }).catch(function(e){ showToast("Error generando PDF","error"); preview.style.left="-9999px"; });
+  // Small delay to let DOM render
+  setTimeout(function() {
+    html2canvas(preview, {
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      backgroundColor: "#ffffff",
+      allowTaint: true,
+      width: 794,
+      scrollX: 0,
+      scrollY: 0
+    }).then(function(canvas) {
+      var imgData = canvas.toDataURL("image/jpeg", 0.95);
+      var pdf = new window.jspdf.jsPDF({ orientation: "p", unit: "pt", format: "a4" });
+      var pW = pdf.internal.pageSize.getWidth();
+      var pH = pdf.internal.pageSize.getHeight();
+      var imgH = (canvas.height * pW) / canvas.width;
+      var yPos = 0;
+      // Handle multi-page if content is tall
+      while (yPos < imgH) {
+        if (yPos > 0) pdf.addPage();
+        pdf.addImage(imgData, "JPEG", 0, -yPos, pW, imgH);
+        yPos += pH;
+      }
+      pdf.save("OP-" + (op.consecutivo||"0") + "-" + esc(op.cliente) + ".pdf");
+      preview.style.visibility = "hidden";
+      showToast("PDF descargado", "success");
+    }).catch(function(e) {
+      console.error("PDF error:", e);
+      preview.style.visibility = "hidden";
+      showToast("Error generando PDF: " + e.message, "error");
+    });
+  }, 150);
 }
 
 function sendOpEmail() {
