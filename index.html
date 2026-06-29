@@ -1276,7 +1276,7 @@ function filterByPeriod(arr, dateField) {
     var dt = normDate(d[dateField]||"");
     // For OPs: use fechaFactura as fallback when fecha is empty
     if (!dt && dateField === "fecha") dt = normDate(d.fechaFactura||"");
-    if (!dt) return true; // no date at all = always include
+    if (!dt) return false; // no date = exclude when period filter is active
     if (pd.desde && dt < pd.desde) return false;
     if (pd.hasta && dt > pd.hasta) return false;
     return true;
@@ -4239,7 +4239,7 @@ function filterByPeriod(arr, dateField) {
     var dt = normDate(d[dateField]||"");
     // For OPs: use fechaFactura as fallback when fecha is empty
     if (!dt && dateField === "fecha") dt = normDate(d.fechaFactura||"");
-    if (!dt) return true; // no date at all = always include
+    if (!dt) return false; // no date = exclude when period filter is active
     if (pd.desde && dt < pd.desde) return false;
     if (pd.hasta && dt > pd.hasta) return false;
     return true;
