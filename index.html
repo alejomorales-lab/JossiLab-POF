@@ -337,12 +337,13 @@ body {
   gap: 14px;
   margin-bottom: 16px;
   align-items: stretch;
+  max-height: 168px;
 }
 .dash-kpis {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  min-width: 200px;
+  gap: 6px;
+  min-width: 190px;
   flex-shrink: 0;
 }
 .compact-kpi {
@@ -389,11 +390,12 @@ body {
   padding: 12px 14px;
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
+  max-height: 160px;
+  overflow: hidden;
 }
 .dash-chart-card canvas {
-  flex: 1;
+  max-height: 110px !important;
+  width: 100% !important;
 }
 
 /* Charts */
@@ -1449,7 +1451,7 @@ function initProdCharts() { // called after render
     chartProdLinea = new Chart(ctxL, {
       type: "doughnut",
       data: { labels: Object.keys(lineaCounts), datasets:[{ data: Object.values(lineaCounts), backgroundColor:["#1A56FF","#4472FF","#6B8FFF","#9AAAFF","#C0C9FF"], borderWidth:0 }] },
-      options: { plugins:{ legend:{ labels:{ color:"#9A9A9A", font:{size:12} } } } }
+      options: { maintainAspectRatio: false, plugins:{ legend:{ position:"right", labels:{ color:"#9A9A9A", font:{size:10}, boxWidth:10, padding:6 } } } }
     });
   }
   // By estado
@@ -1460,8 +1462,8 @@ function initProdCharts() { // called after render
     if (chartProdEstado) chartProdEstado.destroy();
     chartProdEstado = new Chart(ctxE, {
       type: "bar",
-      data: { labels: Object.keys(estadoCounts), datasets:[{ data: Object.values(estadoCounts), backgroundColor:["#1A56FF","#22C55E","#F59E0B"], borderRadius:6, borderWidth:0 }] },
-      options: { plugins:{ legend:{display:false} }, scales:{ x:{ ticks:{color:"#9A9A9A"}, grid:{color:"#2E2E2E"} }, y:{ ticks:{color:"#9A9A9A"}, grid:{color:"#2E2E2E"} } } }
+      data: { labels: Object.keys(estadoCounts), datasets:[{ data: Object.values(estadoCounts), backgroundColor:["#1A56FF","#22C55E","#F59E0B"], borderRadius:4, borderWidth:0 }] },
+      options: { maintainAspectRatio: false, plugins:{ legend:{display:false} }, scales:{ x:{ ticks:{color:"#9A9A9A", font:{size:10}}, grid:{display:false} }, y:{ ticks:{color:"#9A9A9A", font:{size:10}, maxTicksLimit:4}, grid:{color:"#2E2E2E"} } } }
     });
   }
 }
@@ -1994,7 +1996,7 @@ function initFactCharts(data) {
     chartFactLinea = new Chart(ctxL, {
       type: "doughnut",
       data: { labels: Object.keys(lineaMap), datasets:[{ data: Object.values(lineaMap), backgroundColor:["#1A56FF","#4472FF","#6B8FFF","#9AAAFF"], borderWidth:0 }] },
-      options: { plugins:{ legend:{ labels:{ color:"#9A9A9A", font:{size:12} } } } }
+      options: { maintainAspectRatio: false, plugins:{ legend:{ position:"right", labels:{ color:"#9A9A9A", font:{size:10}, boxWidth:10, padding:6 } } } }
     });
   }
   // Acumulado mensual
@@ -2009,8 +2011,8 @@ function initFactCharts(data) {
     if (chartFactAcum) chartFactAcum.destroy();
     chartFactAcum = new Chart(ctxA, {
       type: "bar",
-      data: { labels: meses, datasets:[{ label:"Facturado", data: meses.map(function(m){ return mesMap[m]; }), backgroundColor:"#1A56FF", borderRadius:6, borderWidth:0 }] },
-      options: { plugins:{ legend:{display:false} }, scales:{ x:{ ticks:{color:"#9A9A9A"}, grid:{color:"#2E2E2E"} }, y:{ ticks:{ color:"#9A9A9A", callback:function(v){ return "$"+fmtMoney(v); } }, grid:{color:"#2E2E2E"} } } }
+      data: { labels: meses, datasets:[{ label:"Facturado", data: meses.map(function(m){ return mesMap[m]; }), backgroundColor:"#1A56FF", borderRadius:4, borderWidth:0 }] },
+      options: { maintainAspectRatio: false, plugins:{ legend:{display:false} }, scales:{ x:{ ticks:{color:"#9A9A9A", font:{size:10}}, grid:{display:false} }, y:{ ticks:{ color:"#9A9A9A", font:{size:10}, maxTicksLimit:4, callback:function(v){ return "$"+fmtMoney(v); } }, grid:{color:"#2E2E2E"} } } }
     });
   }
 }
