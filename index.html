@@ -1419,7 +1419,7 @@ function renderProdRows(data) {
   }
   var isAdmin = currentUserData.rol === "Administrador";
   tbody.innerHTML = data.map(function(d) {
-    var colabs = (d.colaboradores||[]).map(function(c){ return c.nombre+" ("+c.cantidad+")"+(c.obs?" - "+c.obs:""); }).join(", ") || "–";
+    var colabs = (d.colaboradores||[]).map(function(c){ return c.nombre+" ("+c.cantidad+")"; }).join(", ") || "–";
     var estadoBadge = d.estado==="En curso" ? "badge-blue" : d.estado==="Finalizado" ? "badge-green" : "badge-yellow";
     var accs = "";
     if (isAdmin) {
@@ -1844,7 +1844,7 @@ function saveOP() {
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     db.collection("ops").add(data).then(function(ref) {
       // Mark prod as passed
-      if (opSourceProdId) db.collection("produccion").doc(opSourceProdId).update({ pasadaAOP:true, opId:ref.id });
+      if (opSourceProdId) db.collection("produccion").doc(opSourceProdId).update({ pasadaAOP:true, opId:ref.id, estado:'Finalizado' });
       showToast("OP creada","success");
       closeModal("modal-op");
       reloadCache("ops").then(function(){
