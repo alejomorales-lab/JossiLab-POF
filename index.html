@@ -331,42 +331,36 @@ body {
 .kpi-value { font-size: 22px; font-weight: 700; color: var(--text-primary); font-family: var(--font-mono); }
 .kpi-sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 
-/* ── Compact Dashboard Row (TC-Monitor style) ── */
-.dash-row {
-  display: flex;
-  gap: 14px;
-  margin-bottom: 16px;
-  align-items: stretch;
-  max-height: 168px;
-}
-.dash-kpis {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 190px;
-  flex-shrink: 0;
+/* ── Dashboard: KPI strip + charts ── */
+.dash-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
 }
 .compact-kpi {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
+  border-top: 2px solid var(--accent);
   border-radius: var(--radius-sm);
-  padding: 10px 14px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
+  transition: border-color .2s;
 }
+.compact-kpi:hover { border-top-color: var(--accent-hover); }
 .compact-kpi-label {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
 }
 .compact-kpi-right { text-align: right; }
 .compact-kpi-value {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 700;
   font-family: var(--font-mono);
   color: var(--text-primary);
@@ -375,28 +369,36 @@ body {
 .compact-kpi-sub {
   font-size: 10px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 3px;
 }
 .dash-charts {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
-  flex: 1;
-  min-width: 0;
+  margin-bottom: 16px;
 }
 .dash-chart-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 14px;
-  flex: 1;
-  min-width: 0;
-  max-height: 160px;
+  padding: 14px 16px;
+  position: relative;
   overflow: hidden;
+  height: 160px;
+}
+.dash-chart-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent) 0%, transparent 100%);
+  opacity: 0.4;
 }
 .dash-chart-card canvas {
-  max-height: 110px !important;
+  height: 110px !important;
   width: 100% !important;
 }
+.dash-row { display: none; }
 
 /* Charts */
 .charts-grid {
@@ -1369,20 +1371,17 @@ function renderProduccion() {
   var total      = data.length;
   var totalUnid  = data.reduce(function(a,b){ return a+(b.cantidad||0); }, 0);
 
-  // Compact dashboard row: KPIs left + Charts right
-  var html = "<div class=\"dash-row\">";
-  // KPI column
-  html += "<div class=\"dash-kpis\">";
-  html += compactKpi("Total", total, "trabajos");
+  // KPI horizontal strip
+  var html = "<div class=\"dash-kpi-strip\">";
+  html += compactKpi("Total trabajos", total, "registros");
   html += compactKpi("En curso", enCurso, "activos");
   html += compactKpi("Finalizados", finaliz, "completados");
-  html += compactKpi("Unidades", totalUnid, "en prod.");
+  html += compactKpi("Unidades", totalUnid, "en producción");
   html += "</div>";
-  // Charts column
+  // Charts row below
   html += "<div class=\"dash-charts\">";
-  html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Por línea</div><canvas id=\"chart-prod-linea\" height=\"90\"></canvas></div>";
-  html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Por estado</div><canvas id=\"chart-prod-estado\" height=\"90\"></canvas></div>";
-  html += "</div>";
+  html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Por línea de negocio</div><canvas id=\"chart-prod-linea\" height=\"110\"></canvas></div>";
+  html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Por estado</div><canvas id=\"chart-prod-estado\" height=\"110\"></canvas></div>";
   html += "</div>";
 
   // Action row
@@ -1449,9 +1448,32 @@ function initProdCharts() { // called after render
   if (ctxL) {
     if (chartProdLinea) chartProdLinea.destroy();
     chartProdLinea = new Chart(ctxL, {
-      type: "doughnut",
-      data: { labels: Object.keys(lineaCounts), datasets:[{ data: Object.values(lineaCounts), backgroundColor:["#1A56FF","#4472FF","#6B8FFF","#9AAAFF","#C0C9FF"], borderWidth:0 }] },
-      options: { maintainAspectRatio: false, plugins:{ legend:{ position:"right", labels:{ color:"#9A9A9A", font:{size:10}, boxWidth:10, padding:6 } } } }
+      type: "bar",
+      data: {
+        labels: Object.keys(lineaCounts),
+        datasets:[{
+          data: Object.values(lineaCounts),
+          backgroundColor: function(ctx) {
+            var gradient = ctxL.getContext("2d").createLinearGradient(0,0,ctxL.width,0);
+            gradient.addColorStop(0,"#1A56FF");
+            gradient.addColorStop(1,"#00C2FF");
+            return gradient;
+          },
+          borderRadius: 4,
+          borderSkipped: false,
+          borderWidth: 0,
+          barThickness: 16
+        }]
+      },
+      options: {
+        indexAxis: "y",
+        maintainAspectRatio: false,
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: function(c){ return " "+c.raw+" trabajos"; } } } },
+        scales:{
+          x:{ ticks:{color:"#606060", font:{size:10}}, grid:{color:"rgba(255,255,255,0.04)"}, border:{display:false} },
+          y:{ ticks:{color:"#9A9A9A", font:{size:11}, padding:4}, grid:{display:false}, border:{display:false} }
+        }
+      }
     });
   }
   // By estado
@@ -1462,8 +1484,25 @@ function initProdCharts() { // called after render
     if (chartProdEstado) chartProdEstado.destroy();
     chartProdEstado = new Chart(ctxE, {
       type: "bar",
-      data: { labels: Object.keys(estadoCounts), datasets:[{ data: Object.values(estadoCounts), backgroundColor:["#1A56FF","#22C55E","#F59E0B"], borderRadius:4, borderWidth:0 }] },
-      options: { maintainAspectRatio: false, plugins:{ legend:{display:false} }, scales:{ x:{ ticks:{color:"#9A9A9A", font:{size:10}}, grid:{display:false} }, y:{ ticks:{color:"#9A9A9A", font:{size:10}, maxTicksLimit:4}, grid:{color:"#2E2E2E"} } } }
+      data: {
+        labels: Object.keys(estadoCounts),
+        datasets:[{
+          data: Object.values(estadoCounts),
+          backgroundColor: ["rgba(26,86,255,0.85)","rgba(34,197,94,0.85)","rgba(245,158,11,0.85)"],
+          borderRadius: 6,
+          borderSkipped: false,
+          borderWidth: 0,
+          barThickness: 28
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins:{ legend:{display:false} },
+        scales:{
+          x:{ ticks:{color:"#9A9A9A", font:{size:11, weight:"600"}}, grid:{display:false}, border:{display:false} },
+          y:{ ticks:{color:"#606060", font:{size:10}, maxTicksLimit:4, stepSize:1}, grid:{color:"rgba(255,255,255,0.04)"}, border:{display:false} }
+        }
+      }
     });
   }
 }
@@ -1865,12 +1904,11 @@ function sendOpEmail() {
 // ===  MÓDULO FACTURACIÓN  ===================================
 // ============================================================
 function renderFacturacion() {
-  var html = "<div class=\"dash-row\">";
-  html += "<div class=\"dash-kpis\" id=\"fact-kpis\"></div>";
+  var html = "<div class=\"dash-kpi-strip\" id=\"fact-kpis\"></div>";
   html += "<div class=\"dash-charts\">";
-  html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Por l\u00ednea</div><canvas id=\"chart-fact-linea\" height=\"90\"></canvas></div>";
-  html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Acumulado</div><canvas id=\"chart-fact-acum\" height=\"90\"></canvas></div>";
-  html += "</div></div>";
+  html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Por l\u00ednea de negocio</div><canvas id=\"chart-fact-linea\" height=\"110\"></canvas></div>";
+  html += "<div class=\"dash-chart-card\"><div class=\"chart-card-title\">Acumulado facturado</div><canvas id=\"chart-fact-acum\" height=\"110\"></canvas></div>";
+  html += "</div>";
 
   // Filtros
   html += "<div class=\"action-row\" style=\"margin-bottom:16px\">";
@@ -1935,9 +1973,10 @@ function updateFactKPIs(data) {
   var totalPend     = pendientes.reduce(function(a,b){ return a+(b.valorTotal||0); }, 0);
   var kEl = document.getElementById("fact-kpis");
   if (kEl) kEl.innerHTML =
-    compactKpi("Facturadas", facturadas.length, "$"+fmtMoney(totalFact)) +
-    compactKpi("Pendientes", pendientes.length, "$"+fmtMoney(totalPend)) +
-    compactKpi("Total período", data.length, "$"+fmtMoney(totalFact+totalPend));
+    compactKpi("OPs facturadas", facturadas.length, "$"+fmtMoney(totalFact)) +
+    compactKpi("OPs pendientes", pendientes.length, "$"+fmtMoney(totalPend)) +
+    compactKpi("Total período", data.length, "$"+fmtMoney(totalFact+totalPend)) +
+    compactKpi("Valor promedio OP", data.length ? Math.round((totalFact+totalPend)/data.length) : 0, "por orden");
 }
 
 function renderFactRows(data) {
@@ -1994,9 +2033,32 @@ function initFactCharts(data) {
   if (ctxL) {
     if (chartFactLinea) chartFactLinea.destroy();
     chartFactLinea = new Chart(ctxL, {
-      type: "doughnut",
-      data: { labels: Object.keys(lineaMap), datasets:[{ data: Object.values(lineaMap), backgroundColor:["#1A56FF","#4472FF","#6B8FFF","#9AAAFF"], borderWidth:0 }] },
-      options: { maintainAspectRatio: false, plugins:{ legend:{ position:"right", labels:{ color:"#9A9A9A", font:{size:10}, boxWidth:10, padding:6 } } } }
+      type: "bar",
+      data: {
+        labels: Object.keys(lineaMap),
+        datasets:[{
+          data: Object.values(lineaMap),
+          backgroundColor: function(ctx) {
+            var g = ctxL.getContext("2d").createLinearGradient(0,0,ctxL.width,0);
+            g.addColorStop(0,"#1A56FF");
+            g.addColorStop(1,"#00C2FF");
+            return g;
+          },
+          borderRadius: 4,
+          borderSkipped: false,
+          borderWidth: 0,
+          barThickness: 16
+        }]
+      },
+      options: {
+        indexAxis: "y",
+        maintainAspectRatio: false,
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label: function(c){ return " $"+fmtMoney(c.raw); } } } },
+        scales:{
+          x:{ ticks:{color:"#606060", font:{size:10}, callback: function(v){ return "$"+fmtMoney(v); }}, grid:{color:"rgba(255,255,255,0.04)"}, border:{display:false} },
+          y:{ ticks:{color:"#9A9A9A", font:{size:11}, padding:4}, grid:{display:false}, border:{display:false} }
+        }
+      }
     });
   }
   // Acumulado mensual
@@ -2011,8 +2073,29 @@ function initFactCharts(data) {
     if (chartFactAcum) chartFactAcum.destroy();
     chartFactAcum = new Chart(ctxA, {
       type: "bar",
-      data: { labels: meses, datasets:[{ label:"Facturado", data: meses.map(function(m){ return mesMap[m]; }), backgroundColor:"#1A56FF", borderRadius:4, borderWidth:0 }] },
-      options: { maintainAspectRatio: false, plugins:{ legend:{display:false} }, scales:{ x:{ ticks:{color:"#9A9A9A", font:{size:10}}, grid:{display:false} }, y:{ ticks:{ color:"#9A9A9A", font:{size:10}, maxTicksLimit:4, callback:function(v){ return "$"+fmtMoney(v); } }, grid:{color:"#2E2E2E"} } } }
+      data: {
+        labels: meses,
+        datasets:[{
+          data: meses.map(function(m){ return mesMap[m]; }),
+          backgroundColor: function(ctx2) {
+            var g2 = ctxA.getContext("2d").createLinearGradient(0,0,0,ctxA.height);
+            g2.addColorStop(0,"rgba(26,86,255,0.9)");
+            g2.addColorStop(1,"rgba(0,194,255,0.3)");
+            return g2;
+          },
+          borderRadius: 5,
+          borderSkipped: false,
+          borderWidth: 0
+        }]
+      },
+      options: {
+        maintainAspectRatio: false,
+        plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:function(c){ return " $"+fmtMoney(c.raw); } } } },
+        scales:{
+          x:{ ticks:{color:"#9A9A9A", font:{size:10}}, grid:{display:false}, border:{display:false} },
+          y:{ ticks:{ color:"#606060", font:{size:10}, maxTicksLimit:4, callback:function(v){ return "$"+fmtMoney(v); } }, grid:{color:"rgba(255,255,255,0.04)"}, border:{display:false} }
+        }
+      }
     });
   }
 }
