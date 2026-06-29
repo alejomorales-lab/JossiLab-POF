@@ -170,7 +170,7 @@ body {
 }
 
 /* ======== APP SHELL ======== */
-#app { display: none; height: 100vh; overflow: hidden; }
+#app { display: none; height: 100vh; overflow: hidden; width: 100vw; }
 
 /* Sidebar */
 .sidebar {
@@ -265,6 +265,7 @@ body {
 /* Main content */
 .main-content {
   margin-left: var(--sidebar-w);
+  width: calc(100vw - var(--sidebar-w));
   height: 100vh;
   overflow-y: auto;
   display: flex;
@@ -297,23 +298,24 @@ body {
 .topbar-actions { margin-left: auto; display: flex; gap: 8px; }
 
 .page-body {
-  padding: 28px;
+  padding: 20px 24px;
   flex: 1;
+  min-width: 0;
 }
 
 /* ======== COMPONENTS ======== */
 /* KPI Cards */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 16px;
-  margin-bottom: 28px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
 }
 .kpi-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 20px;
+  padding: 14px 16px;
   position: relative;
   overflow: hidden;
 }
@@ -326,7 +328,7 @@ body {
   opacity: 0.6;
 }
 .kpi-label { font-size: 11px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 8px; }
-.kpi-value { font-size: 28px; font-weight: 700; color: var(--text-primary); font-family: var(--font-mono); }
+.kpi-value { font-size: 22px; font-weight: 700; color: var(--text-primary); font-family: var(--font-mono); }
 .kpi-sub { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
 
 /* Charts */
@@ -2057,11 +2059,11 @@ function saveConfigCorreo() {
 // ============================================================
 function openModalColaborador() {
   document.getElementById("modal-colab-title").textContent = "Nuevo colaborador";
-  document.getElementById("colab-nombre").value = "";
-  document.getElementById("colab-email").value  = "";
-  document.getElementById("colab-cargo").value  = "";
-  document.getElementById("colab-rol").value    = "Colaborador";
-  document.getElementById("colab-pass").value   = "";
+  document.getElementById("colab-nombre").value      = "";
+  document.getElementById("colab-email").value       = "";
+  document.getElementById("colab-cargo").value       = "";
+  document.getElementById("colab-rol").value         = "Colaborador";
+  document.getElementById("colab-avatar-url").value  = "";
   openModal("modal-colaborador");
 }
 
