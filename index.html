@@ -1711,13 +1711,22 @@ function addOpItem(desc, cant, unidad, precio) {
   var list = document.getElementById("op-items-list");
   var row  = document.createElement("div");
   row.className = "op-item-row";
-  row.innerHTML = "<input type=\"text\" placeholder=\"Descripción\" value=\""+(desc||"")+"\"><input type=\"number\" placeholder=\"Cant.\" min=\"0\" value=\""+(cant||"")+"\"><input type=\"text\" placeholder=\"Unidad\" value=\""+(unidad||"")+"\"><input type=\"number\" placeholder=\"Valor unit.\" min=\"0\" value=\""+(precio||"")+" \" oninput=\"updateOpTotal()\"><button class=\"btn btn-danger btn-sm btn-icon\" onclick=\"this.parentNode.remove();updateOpTotal()\">&#10005;</button>";
-  // Wire quantity input too
+  // Build inputs via DOM to avoid escaping issues
+  var i0 = document.createElement("input"); i0.type="text"; i0.placeholder="Descripción"; i0.value=desc||"";
+  var i1 = document.createElement("input"); i1.type="number"; i1.placeholder="Cant."; i1.min="0"; i1.value=cant||"";
+  var i2 = document.createElement("input"); i2.type="text"; i2.placeholder="Unidad"; i2.value=unidad||"";
+  var i3 = document.createElement("input"); i3.type="number"; i3.placeholder="Valor unit."; i3.min="0";
+  i3.value = (precio !== null && precio !== undefined && precio !== "") ? precio : "";
+  var btn = document.createElement("button");
+  btn.className = "btn btn-danger btn-sm btn-icon";
+  btn.innerHTML = "&#10005;";
+  btn.onclick = function(){ row.remove(); updateOpTotal(); };
+  i3.addEventListener("input", updateOpTotal);
+  i1.addEventListener("input", updateOpTotal);
+  row.appendChild(i0); row.appendChild(i1); row.appendChild(i2); row.appendChild(i3); row.appendChild(btn);
   list.appendChild(row);
-  // Add listeners
-  row.querySelectorAll("input[type=number]").forEach(function(inp){ inp.addEventListener("input", updateOpTotal); });
+  updateOpTotal();
 }
-
 function updateOpTotal() {
   var total = 0;
   document.querySelectorAll("#op-items-list .op-item-row").forEach(function(row) {
