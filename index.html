@@ -2918,10 +2918,32 @@ function importFacturacionExcel(input) {
   reader.readAsBinaryString(file);
 }
 function exportFacturacionExcel() {
-  var data = getFactFilteredData().map(function(d) {
+  var base = getFactFilteredData();
+  var q = (document.getElementById("search-fact")||{}).value||"";
+  q = q.toLowerCase().trim();
+  if (q) {
+    base = base.filter(function(d){
+      return (d.cliente||"").toLowerCase().includes(q) ||
+             (d.proyecto||"").toLowerCase().includes(q) ||
+             (d.linea||"").toLowerCase().includes(q) ||
+             String(d.consecutivo||"").includes(q) ||
+             (d.codigoFactura||"").toLowerCase().includes(q);
+    });
+  }
+  var data = base.map(function(d) {
     return { "OP #":"OP-"+(d.consecutivo||""), "Cliente":d.cliente||"", "Proyecto":d.proyecto||"", "Línea":d.linea||"", "Valor total":d.valorTotal||0, "Fecha OP":d.fecha||"", "Facturado":d.facturado?"Sí":"No", "Código factura":d.codigoFactura||"", "Fecha factura":d.fechaFactura||"", "Observaciones":d.observaciones||"" };
   });
-  exportToExcel(data, "Facturacion_JossiLab");
+  if (!data.length) { showToast("No hay datos para exportar con el filtro actual","error"); return; }
+  var periodLabels = {
+    "mes_actual": "MesActual",
+    "trimestre":  "Trimestre",
+    "semestre":   "Semestre",
+    "anio":       "Anio",
+    "todo":       "Todo",
+    "rango":      "Rango_"+(rangeDesde||"")+"_a_"+(rangeHasta||"")
+  };
+  var suffix = periodLabels[activePeriod] || "Filtro";
+  exportToExcel(data, "Facturacion_JossiLab_"+suffix);
 }
 
 function exportToExcel(data, filename) {
@@ -5716,10 +5738,32 @@ function exportOPsExcel() {
 }
 
 function exportFacturacionExcel() {
-  var data = getFactFilteredData().map(function(d) {
+  var base = getFactFilteredData();
+  var q = (document.getElementById("search-fact")||{}).value||"";
+  q = q.toLowerCase().trim();
+  if (q) {
+    base = base.filter(function(d){
+      return (d.cliente||"").toLowerCase().includes(q) ||
+             (d.proyecto||"").toLowerCase().includes(q) ||
+             (d.linea||"").toLowerCase().includes(q) ||
+             String(d.consecutivo||"").includes(q) ||
+             (d.codigoFactura||"").toLowerCase().includes(q);
+    });
+  }
+  var data = base.map(function(d) {
     return { "OP #":"OP-"+(d.consecutivo||""), "Cliente":d.cliente||"", "Proyecto":d.proyecto||"", "Línea":d.linea||"", "Valor total":d.valorTotal||0, "Fecha OP":d.fecha||"", "Facturado":d.facturado?"Sí":"No", "Código factura":d.codigoFactura||"", "Fecha factura":d.fechaFactura||"", "Observaciones":d.observaciones||"" };
   });
-  exportToExcel(data, "Facturacion_JossiLab");
+  if (!data.length) { showToast("No hay datos para exportar con el filtro actual","error"); return; }
+  var periodLabels = {
+    "mes_actual": "MesActual",
+    "trimestre":  "Trimestre",
+    "semestre":   "Semestre",
+    "anio":       "Anio",
+    "todo":       "Todo",
+    "rango":      "Rango_"+(rangeDesde||"")+"_a_"+(rangeHasta||"")
+  };
+  var suffix = periodLabels[activePeriod] || "Filtro";
+  exportToExcel(data, "Facturacion_JossiLab_"+suffix);
 }
 
 function exportToExcel(data, filename) {
